@@ -129,6 +129,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="goldgame.ixx" />
+    <ClCompile Include="goldgame_clean.ixx" />
+    <ClCompile Include="goldgame_critical.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="coin_toss_game.ixx" />
     <ClCompile Include="game.ixx" />

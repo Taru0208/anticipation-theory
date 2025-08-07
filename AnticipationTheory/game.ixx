@@ -5,7 +5,7 @@ import "pch.h";
 
 export namespace game
 {
-	constexpr unsigned long MAX_ANTICIPATION_NEST_LEVEL = 8;
+	constexpr unsigned long MAX_ANTICIPATION_NEST_LEVEL = 20;
 
 	struct EmptyConfig {};
 	struct StateNode
@@ -60,6 +60,7 @@ export namespace game
 		std::vector<State> states;
 		std::vector<State> states_R;
 		std::map<State, StateNode> stateNodes;
+		double gds_components[MAX_ANTICIPATION_NEST_LEVEL] = { 0.0 }; // game design score components, A1~5
 		double game_design_score;
 	};
 
@@ -281,6 +282,8 @@ export namespace game
 		result.states_R = std::move(states_R);
 		result.stateNodes = std::move(resultNodes);
 		//result.game_design_score = game_design_score;
+		for (unsigned long i = 0; i < A_nest_level; i++)
+			result.gds_components[i] = game_design_scores[i];
 		for (unsigned long i = 0; i < A_nest_level; i++)
 			result.game_design_score += game_design_scores[i];
 		return result;

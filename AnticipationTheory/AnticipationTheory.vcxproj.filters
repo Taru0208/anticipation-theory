@@ -10,5 +10,8 @@
     <ClCompile Include="rps_game.ixx" />
     <ClCompile Include="coin_toss_game.ixx" />
     <ClCompile Include="two_turn_game.ixx" />
+    <ClCompile Include="goldgame.ixx" />
+    <ClCompile Include="goldgame_critical.ixx" />
+    <ClCompile Include="goldgame_clean.ixx" />
   </ItemGroup>
 </Project>

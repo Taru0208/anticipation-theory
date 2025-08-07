@@ -5,6 +5,8 @@ import coin_toss_game;
 import hpgame_v1;
 import hpgame_rage;
 import lanegame;
+import goldgame;
+import goldgame_clean;
 
 using namespace game;
 
@@ -102,11 +104,11 @@ int hpgame_rage_analyze_program()
 	printf("Game design score(sum(A1~5)): %f\n", analysis.game_design_score);
 	printf("Game design score(simulated, sum(A1~5)): %f\n",
 		game::compute_gamedesign_score_simulation<Game>(
-		[&](const hpgame_rage::State& s)
-		{
-			return analysis.stateNodes[s].sum_A();
-		}, config
-	));
+			[&](const hpgame_rage::State& s)
+			{
+				return analysis.stateNodes[s].sum_A();
+			}, config
+		));
 
 	puts("Note: HpGame Rage demonstrates novel rage/critical hit mechanics.\n"
 		"  1. Rage accumulates when dealing or receiving damage, enabling strategic depth.\n"
@@ -337,6 +339,80 @@ int optimal_two_turn_game_program()
 
 	return 0;
 }
+int goldgame_program()
+{
+	using namespace goldgame;
+	auto config = Game::Config();
+	auto initial_state = Game::initial_state();
+	//config.reward = EventRewardType::Linear; // Set the reward type to Linear for this example
+	config.reward = EventRewardType::Geometric; // Set the reward type to Geometric for this example
+	auto analysis = game::analyze<Game>(initial_state, Game::compute_intrinsic_desire, config, 15);
+	printf("Most engaging moments(sorted by sum(A))\n");
+	dump_most_engaging_states<Game>(analysis);
+	printf("Game design score: %f\n", analysis.game_design_score);
+	// print gds_components
+	printf("Game design score components:\n");
+	for (int i = 0; i < MAX_ANTICIPATION_NEST_LEVEL; ++i)
+		printf("A%d:%.6f\t", i + 1, analysis.gds_components[i]);
+
+	// Gold Game Experimental Results
+	// 1. Gold game represents multiple competitive scenarios:
+	//    A) Competitive resource gathering (time-attack for numerical objectives)
+	//    B) Lane battles competing for CS (minions/gold acquisition)
+	//    C) RPG dungeons where players compete for rank 1 level/gold
+
+	// 2. Vanilla setup proves remarkably difficult to surpass.
+	//    We tested multiple intuitive modifications, all failed to achieve better GDS:
+	// 
+	//    A) Critical hits (gold stealing, bonus rewards, etc.)
+	//    B) Adaptive rewards (increasing rewards over time)
+	//    C) Catch-up mechanics (differential rewards favoring trailing players)
+	// 
+	//    This suggests honest linear reward stacking is fundamental to optimal game design.
+	//    Notably, vanilla configurations consistently achieve highest A4+ values,
+	//    while "intuitive" design modifications increase A1/A2 but decrease higher components (A4+).
+	// 
+	// Vanilla Baseline:
+	// State                   D_global        A1      A2      A3      A4      A5      A6      A7      A8      sum(A)
+	// T1 P1:1000 P2:1000      0.38            0.17    0.14    0.01    0.06    0.00    0.00    0.00    0.00    0.38
+	// Game design score: 0.346787
+	// Game design score components:
+	// A1:0.185383     A2:0.129815     A3:0.013145     A4:0.018445     A5:0.000000     A6:0.000000     A7:0.000000     A8:0.000000
+
+	// 3. Only pure geometric progression surpassed vanilla:
+	//    start_gold:1000, success:*1.2, fail:/1.2, chance:0.68
+	// 
+	//    Game design score: 0.370465
+	//    Game design score components:
+	//    A1:0.188306     A2:0.131203     A3:0.036722     A4:0.013941     A5:0.000292     A6:0.000000     A7:0.000000     A8:0.000000
+	//
+	//    Note that geometric progression represents accuratedly "stock trading".
+	
+	// 4. FIND: Turn count directly explodes GDS!
+	//    Linear increase + 15 turns + MAX_ANTICIPATION_NEST_LEVEL=15
+	// 
+	//    Game design score: 0.437554
+	//    Game design score components:
+	//    A1:0.105142     A2:0.133463     A3:0.068998     A4:0.077222     A5:0.036403     A6:0.004714     A7:0.005993     A8:0.004153     A9:0.001324     A10:0.000079    A11:0.000053    A12:0.000006    A13:0.000003    A14:0.000000    A15:0.000000
+	// 
+	//    Linear increase + 20 turns + MAX_ANTICIPATION_NEST_LEVEL=20
+	//    Game design score: 0.534072
+	//    Game design score components:
+	//    A1:0.090738     A2:0.132753     A3:0.086857     A4:0.102453     A5:0.066353     A6:0.013406     A7:0.022477     A8:0.013179     A9:0.004203     A10:0.000909    A11:0.000612    A12:0.000062    A13:0.000059    A14:0.000003    A15:0.000005   A16:0.000000     A17:0.000000    A18:0.000000    A19:0.000000    A20:0.000000
+	// 
+	//    Geometric increase + 20 turns + MAX_ANTICIPATION_NEST_LEVEL=20
+	//    Game design score: 0.552449
+	//    Game design score components:
+	//    A1:0.091112     A2:0.137591     A3:0.094180     A4:0.106888     A5:0.066017     A6:0.019620     A7:0.015804     A8:0.013015     A9:0.006005     A10:0.001698    A11:0.000389    A12:0.000094    A13:0.000022    A14:0.000011    A15:0.000003   A16:0.000000     A17:0.000000    A18:0.000000    A19:0.000000    A20:0.000000
+
+	// THEORETICAL IMPLICATIONS:
+	// - Direct mathematical evidence supporting ToA's Unbound Conjecture.
+	// - Proof that fair, honest, and highly-dense stacking rewards represent highly optimal mechanical forms in certain circumstances.
+	// - Mathematical evidence that low TTK, fast-paced games are suboptimal design choices esp. in top-down (MOBA-type) setups.
+	// - Concrete guiding principles for designing competitive top-down games(design highly-dense and honest reward systems, increase turn count, and avoid low TTK).
+
+	return 0;
+}
 
 int main()
 {
@@ -351,9 +427,11 @@ int main()
 		hpgame_rage_compare_mechanics,
 		hpgame_rage_optimized,
 		optimal_two_turn_game,
+
+		goldgame,
 	};
 
-	switch (hpgame_rage_optimized) // Change this to run different programs
+	switch (goldgame) // Change this to run different programs
 	{
 	case rock_paper_scissors: return rps_program();
 	case cointoss: return cointoss_program();
@@ -364,5 +442,7 @@ int main()
 	case hpgame_rage_compare_mechanics: return hpgame_rage_compare_mechanics_program();
 	case hpgame_rage_optimized: return hpgame_rage_optimized_program();
 	case optimal_two_turn_game: return optimal_two_turn_game_program();
+
+	case goldgame: return goldgame_program();
 	}
 }
