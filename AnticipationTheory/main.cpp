@@ -7,6 +7,7 @@ import hpgame_rage;
 import lanegame;
 import goldgame;
 import goldgame_clean;
+import two_turn_game;
 
 using namespace game;
 
@@ -334,8 +335,146 @@ int hpgame_rage_optimized_program()
 
 	return 0;
 }
-int optimal_two_turn_game_program()
-{
+
+int optimal_two_turn_game_program() {
+	// Result structure for ranking configurations
+	struct RankedResult {
+		two_turn_game::Config config;
+		double score = 0.0;
+
+		bool operator<(const RankedResult& other) const {
+			return score > other.score; // Higher scores first
+		}
+	};
+
+	// Fitness calculation function
+	auto calculate_fitness = [](const two_turn_game::Config& config) -> double {
+		auto initial_state = two_turn_game::Game::initial_state();
+		auto analysis = game::analyze<two_turn_game::Game>(
+			initial_state,
+			two_turn_game::Game::compute_intrinsic_desire,
+			config,
+			2
+		);
+		return analysis.game_design_score;
+		};
+
+	std::cout << "Finding optimal parameters for Two-Turn Game using Random Search..." << std::endl;
+
+	// Configuration constants
+	const int NUM_ITERATIONS = 1000000;
+	const int RANKING_COUNT = 10;
+
+	// Random number generation setup
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> prob_dist(0.0f, 1.0f);
+
+	// Storage for top results
+	std::vector<RankedResult> top_results;
+	top_results.reserve(RANKING_COUNT + 1);
+
+	// Main optimization loop
+	for (int i = 0; i < NUM_ITERATIONS; ++i) {
+		two_turn_game::Config current_config;
+
+		// Use preset configurations for first two iterations
+		if (i == 0) {
+			current_config.probability1 = 0.66666666666666666666666666666;
+			current_config.probability2 = 0.33333333333333333333333333333;
+			current_config.probability3 = 1.0;
+		}
+		else if (i == 1) {
+			current_config.probability1 = 0.33333333333333333333333333333;
+			current_config.probability2 = 1.0;
+			current_config.probability3 = 0.33333333333333333333333333333;
+		}
+		else {
+			// Generate random configuration
+			current_config.probability1 = prob_dist(gen);
+			current_config.probability2 = prob_dist(gen);
+			current_config.probability3 = prob_dist(gen);
+		}
+
+		double current_score = calculate_fitness(current_config);
+
+		// Update top results if this configuration is good enough
+		if (top_results.size() < RANKING_COUNT || current_score > top_results.back().score) {
+			top_results.push_back({ current_config, current_score });
+			std::sort(top_results.begin(), top_results.end());
+
+			// Keep only top RANKING_COUNT results
+			if (top_results.size() > RANKING_COUNT) {
+				top_results.pop_back();
+			}
+		}
+
+		// Progress reporting
+		if (i > 0 && i % 10000 == 0) {
+			printf("Iteration %d: Best GDS so far = %.6f\n", i, top_results[0].score);
+		}
+	}
+
+	// Print optimization results
+	std::cout << "\n--- Optimization Finished ---\n" << std::endl;
+	printf("Top %d Rankings:\n", RANKING_COUNT);
+	printf("Rank\tGDS\t\tp1\t\tp2\t\tp3\n");
+	printf("----\t--------\t--------\t--------\t--------\n");
+
+	for (size_t i = 0; i < top_results.size(); ++i) {
+		printf("#%zu\t%.6f\t%.4f\t\t%.4f\t\t%.4f\n",
+			i + 1,
+			top_results[i].score,
+			top_results[i].config.probability1,
+			top_results[i].config.probability2,
+			top_results[i].config.probability3);
+	}
+
+	// Detailed analysis of best configuration
+	if (!top_results.empty()) {
+		std::cout << "\n--- Detailed Analysis of #1 Configuration ---\n" << std::endl;
+		auto analysis = game::analyze<two_turn_game::Game>(
+			two_turn_game::Game::initial_state(),
+			two_turn_game::Game::compute_intrinsic_desire,
+			top_results[0].config,
+			2
+		);
+
+		printf("GDS: %f\n", analysis.game_design_score);
+		printf("GDS Components:\n");
+		for (int i = 0; i < MAX_ANTICIPATION_NEST_LEVEL; ++i) {
+			if (analysis.gds_components[i] > 0.0) {
+				printf("  A%d: %.6f\n", i + 1, analysis.gds_components[i]);
+			}
+		}
+
+		// Complete state analysis
+		std::cout << "\n--- All States Analysis for #1 Configuration ---" << std::endl;
+		printf("State\t\t\tA1\t\tA2\t\tSUM\n");
+		printf("----------------\t--------\t--------\t--------\n");
+
+		// Sort states by turn and node index
+		auto sorted_states = analysis.states;
+		std::sort(sorted_states.begin(), sorted_states.end(),
+			[](const auto& a, const auto& b) {
+				if (a.turn != b.turn) return a.turn < b.turn;
+				return a.node_idx_in_turn < b.node_idx_in_turn;
+			});
+
+		for (const auto& state : sorted_states) {
+			// Skip terminal states as they don't have anticipation values
+			if (two_turn_game::Game::is_terminal_state(state)) continue;
+
+			auto& node = analysis.stateNodes[state];
+			std::string state_str = two_turn_game::Game::tostr(state);
+
+			printf("%-16s\t%.6f\t%.6f\t%.6f\n",
+				state_str.c_str(),
+				node.a[0],              // A1
+				node.a[1],              // A2  
+				node.a[0] + node.a[1]); // SUM
+		}
+	}
 
 	return 0;
 }
