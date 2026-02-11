@@ -75,6 +75,47 @@ The following experiments are implemented as demonstrations and test cases for t
 
 -----
 
+## Python Port & Extended Research
+
+This fork includes a complete Python port of the C++ analysis engine, enabling rapid experimentation on any platform.
+
+### Getting Started (Python)
+
+```bash
+cd python
+python3 -m pytest tests/ -v      # Run all 35 tests
+python3 experiments/moba_model.py # Run MOBA analysis
+```
+
+### Ported Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Core Engine | `python/toa/engine.py` | Full `analyze()` function — DP, nested anticipation, GDS |
+| Monte Carlo | `python/toa/simulate.py` | Simulation-based GDS estimation |
+| CoinToss | `python/toa/games/coin_toss.py` | A₁ = 0.500 (theoretical maximum) |
+| RPS | `python/toa/games/rps.py` | A₁ = 0.471 |
+| HpGame | `python/toa/games/hpgame.py` | GDS = 0.430 |
+| HpGame\_Rage | `python/toa/games/hpgame_rage.py` | GDS = 0.544 (+26.5%) |
+| GoldGame | `python/toa/games/goldgame.py` | Economic competition |
+| GoldGame\_Critical | `python/toa/games/goldgame_critical.py` | With steal mechanics |
+| LaneGame | `python/toa/games/lanegame.py` | MOBA laning model |
+| TwoTurnGame | `python/toa/games/two_turn_game.py` | Parameter optimization |
+
+### Extended Experiments
+
+| Experiment | Key Finding |
+|------------|-------------|
+| **Genetic Algorithm Optimizer** | Discovered a symmetric game with GDS = 0.979 (77.8% better than hand-designed HpGame\_Rage) |
+| **Optimal Game Analysis** | Optimal kill probability ≈ 50%; "moderate lethality" maximizes engagement |
+| **Best-of-N Coin Toss** | GDS grows with N even for identical transitions — pure form of Unbound Conjecture |
+| **MOBA Lane Model** | GDS = 0.540 with highest strategic depth ratio (65.9%) of all tested games |
+| **Perspective Desire Proof** | Mathematically proved that naive and perspective formulations are equivalent |
+| **Narrative Structure** | Rage mechanics amplify narrative arc variance 10× |
+| **GameFlow Bridge** | Maps GameFlow (2005) qualitative elements to computable ToA metrics |
+
+-----
+
 ## Examples
 
 The framework allows you to define a complete game model with minimal code. The engine will then compute the anticipation and evaluate your design. Below is the full example required to implement and analyze a new experiment.
