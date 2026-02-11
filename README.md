@@ -1,12 +1,19 @@
-# Theory of Anticipation (ToA)
+# Theory of Anticipation — Extended Research
 
-[](https://opensource.org/licenses/MIT)
-[](https://doi.org/10.5281/zenodo.15826917)
-[](https://medium.com/@aka.louis/can-you-mathematically-measure-fun-you-could-not-until-now-01168128d428)
+> **This is an independent research fork** of the [Theory of Anticipation (ToA)](https://github.com/akalouis/anticipation-theory) by Jeeheon (Lloyd) Oh ([Farseer Co., Ltd.](https://github.com/akalouis)).
+>
+> **Original work:**
+> - Repository: [akalouis/anticipation-theory](https://github.com/akalouis/anticipation-theory) (MIT License)
+> - Paper: [Formulation of Engagement as Local Anticipation](https://doi.org/10.5281/zenodo.15826917)
+> - Article: [Can You Mathematically Measure Fun?](https://medium.com/@aka.louis/can-you-mathematically-measure-fun-you-could-not-until-now-01168128d428)
+>
+> This repository extends the original with a Python port, additional experiments, and exploration of the theory's open conjectures. All original code and theory belong to the original author.
 
-**Theory of Anticipation (ToA)** is a new mathematical framework for quantifying engagement, or "fun." Created primarily as a game design tool, it offers an objective and computable measure of a player's engagement.
+-----
 
-This repository contains the official C++17 implementation of the theory. For a more intuitive, non-technical explanation, please refer to the [Medium article](https://medium.com/@aka.louis/can-you-mathematically-measure-fun-you-could-not-until-now-01168128d428). The formal academic details are available in the [foundational paper](https://doi.org/10.5281/zenodo.15826917).
+## What is the Theory of Anticipation?
+
+**Theory of Anticipation (ToA)** is a mathematical framework for quantifying engagement, or "fun." Created primarily as a game design tool, it offers an objective and computable measure of a player's engagement.
 
 -----
 
