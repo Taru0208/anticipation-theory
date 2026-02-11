@@ -11,6 +11,7 @@ from toa.games.coin_toss import CoinToss
 from toa.games.rps import RPS
 from toa.games.hpgame import HpGame
 from toa.games.goldgame import GoldGame
+from toa.games.hpgame_rage import HpGameRage
 
 
 def approx(a, b, tolerance=0.01):
@@ -252,6 +253,144 @@ def test_goldgame_gds_increases_with_turns():
 
     assert scores[1] > scores[0], f"GDS should increase: {scores}"
     assert scores[2] > scores[1], f"GDS should increase: {scores}"
+
+
+# ── HpGame_Rage ────────────────────────────────────────────
+
+
+def test_hpgame_rage_gds():
+    """HpGame_Rage GDS ≈ 0.544 with 10% critical (from C++ reference / paper)."""
+    config = HpGameRage.Config(critical_chance=0.10)
+    result = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    assert approx(result.game_design_score, 0.544, tolerance=0.005), \
+        f"GDS = {result.game_design_score}, expected ~0.544"
+
+
+def test_hpgame_rage_improvement_over_baseline():
+    """HpGame_Rage should have ~26.5% higher GDS than baseline HpGame."""
+    baseline = analyze(
+        initial_state=HpGame.initial_state(),
+        is_terminal=HpGame.is_terminal,
+        get_transitions=HpGame.get_transitions,
+        compute_intrinsic_desire=HpGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    config = HpGameRage.Config(critical_chance=0.10)
+    rage = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    improvement = (rage.game_design_score - baseline.game_design_score) / baseline.game_design_score
+    assert 0.20 < improvement < 0.35, f"Improvement = {improvement*100:.1f}%, expected ~26.5%"
+
+
+def test_hpgame_rage_optimal_crit_13():
+    """Optimal critical chance should be near 13% (paper finding)."""
+    best_crit = 0
+    best_gds = 0
+    for crit_pct in [10, 11, 12, 13, 14, 15, 16]:
+        config = HpGameRage.Config(critical_chance=crit_pct / 100.0)
+        result = analyze(
+            initial_state=HpGameRage.initial_state(),
+            is_terminal=HpGameRage.is_terminal,
+            get_transitions=HpGameRage.get_transitions,
+            compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+            config=config,
+            nest_level=5,
+        )
+        if result.game_design_score > best_gds:
+            best_gds = result.game_design_score
+            best_crit = crit_pct
+    assert best_crit == 13, f"Optimal crit = {best_crit}%, expected 13%"
+
+
+def test_hpgame_rage_state_count():
+    """HpGame_Rage with rage should have more states than baseline."""
+    config = HpGameRage.Config(critical_chance=0.10)
+    result = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=1,
+    )
+    assert len(result.states) > 100, f"Only {len(result.states)} states (expected >100 due to rage dimension)"
+
+
+def test_hpgame_rage_asymmetric_engagement():
+    """Slightly asymmetric states should generally be more engaging (paper insight)."""
+    config = HpGameRage.Config(critical_chance=0.10)
+    result = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    # The paper shows (4,3) states are more engaging than (3,3) or (4,4) states
+    # Find top states and verify that asymmetric (hp difference of 1) dominates
+    state_engagement = []
+    for s in result.states:
+        node = result.state_nodes[s]
+        total_a = sum(node.a[:5])
+        if total_a > 0.5 and not HpGameRage.is_terminal(s):
+            state_engagement.append((s, total_a))
+    state_engagement.sort(key=lambda x: x[1], reverse=True)
+    # Top state should have HP difference of 1
+    top_state = state_engagement[0][0]
+    hp_diff = abs(top_state[0] - top_state[1])
+    assert hp_diff == 1, f"Top state {top_state} has HP diff {hp_diff}, expected 1"
+
+
+def test_hpgame_rage_higher_components():
+    """Rage mechanics should produce significant higher-order components."""
+    config = HpGameRage.Config(critical_chance=0.10)
+    result = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    # A₃ and A₄ components should be significant
+    assert result.gds_components[2] > 0.05, f"A₃ = {result.gds_components[2]}, expected > 0.05"
+    assert result.gds_components[3] > 0.02, f"A₄ = {result.gds_components[3]}, expected > 0.02"
+
+
+def test_hpgame_rage_zero_crit_equals_baseline():
+    """With 0% critical chance, HpGame_Rage should approximate baseline HpGame."""
+    config = HpGameRage.Config(critical_chance=0.0)
+    result = analyze(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    baseline = analyze(
+        initial_state=HpGame.initial_state(),
+        is_terminal=HpGame.is_terminal,
+        get_transitions=HpGame.get_transitions,
+        compute_intrinsic_desire=HpGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    assert approx(result.game_design_score, baseline.game_design_score, tolerance=0.005), \
+        f"0% crit GDS={result.game_design_score}, baseline={baseline.game_design_score}"
 
 
 # ── Edge cases ─────────────────────────────────────────────
