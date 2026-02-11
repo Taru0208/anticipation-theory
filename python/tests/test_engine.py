@@ -12,6 +12,10 @@ from toa.games.rps import RPS
 from toa.games.hpgame import HpGame
 from toa.games.goldgame import GoldGame
 from toa.games.hpgame_rage import HpGameRage
+from toa.games.lanegame import LaneGame
+from toa.games.two_turn_game import TwoTurnGame
+from toa.games.goldgame_critical import GoldGameCritical
+from toa.simulate import simulate_gds
 
 
 def approx(a, b, tolerance=0.01):
@@ -407,6 +411,201 @@ def test_probability_conservation():
             compute_intrinsic_desire=game_cls.compute_intrinsic_desire,
             nest_level=5,
         )
+
+
+# ── LaneGame ──────────────────────────────────────────────
+
+
+def test_lanegame_gds():
+    """LaneGame should produce positive GDS — similar structure to HpGame."""
+    result = analyze(
+        initial_state=LaneGame.initial_state(),
+        is_terminal=LaneGame.is_terminal,
+        get_transitions=LaneGame.get_transitions,
+        compute_intrinsic_desire=LaneGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    assert result.game_design_score > 0.3, f"GDS = {result.game_design_score}"
+
+
+def test_lanegame_symmetric():
+    """LaneGame should be symmetric (D₀ close to 0.5)."""
+    result = analyze(
+        initial_state=LaneGame.initial_state(),
+        is_terminal=LaneGame.is_terminal,
+        get_transitions=LaneGame.get_transitions,
+        compute_intrinsic_desire=LaneGame.compute_intrinsic_desire,
+        nest_level=1,
+    )
+    d0 = result.state_nodes[LaneGame.initial_state()].d_global
+    assert 0.3 < d0 < 0.7, f"D₀ = {d0}, expected near 0.5"
+
+
+# ── TwoTurnGame ──────────────────────────────────────────
+
+
+def test_two_turn_default():
+    """Default TwoTurnGame (all p=0.5) should have D₀ = 0.5."""
+    result = analyze(
+        initial_state=TwoTurnGame.initial_state(),
+        is_terminal=TwoTurnGame.is_terminal,
+        get_transitions=TwoTurnGame.get_transitions,
+        compute_intrinsic_desire=TwoTurnGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    d0 = result.state_nodes[(0, 0)].d_global
+    assert approx(d0, 0.5), f"D₀ = {d0}"
+
+
+def test_two_turn_intermediate_a1():
+    """TwoTurnGame intermediate nodes should have A₁ = 0.5 (coin toss equivalent)."""
+    result = analyze(
+        initial_state=TwoTurnGame.initial_state(),
+        is_terminal=TwoTurnGame.is_terminal,
+        get_transitions=TwoTurnGame.get_transitions,
+        compute_intrinsic_desire=TwoTurnGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    # With all p=0.5, initial A₁=0 (children have equal d_global),
+    # but intermediate nodes have A₁=0.5 (coin toss)
+    a1_10 = result.state_nodes[(1, 0)].a[0]
+    assert approx(a1_10, 0.5), f"A₁ at (1,0) = {a1_10}, expected 0.5"
+
+
+def test_two_turn_config():
+    """TwoTurnGame with asymmetric probabilities should change GDS."""
+    config_sym = TwoTurnGame.Config(0.5, 0.5, 0.5)
+    config_asym = TwoTurnGame.Config(0.3, 0.7, 0.2)
+
+    r1 = analyze(
+        initial_state=TwoTurnGame.initial_state(),
+        is_terminal=TwoTurnGame.is_terminal,
+        get_transitions=TwoTurnGame.get_transitions,
+        compute_intrinsic_desire=TwoTurnGame.compute_intrinsic_desire,
+        config=config_sym,
+        nest_level=5,
+    )
+    r2 = analyze(
+        initial_state=TwoTurnGame.initial_state(),
+        is_terminal=TwoTurnGame.is_terminal,
+        get_transitions=TwoTurnGame.get_transitions,
+        compute_intrinsic_desire=TwoTurnGame.compute_intrinsic_desire,
+        config=config_asym,
+        nest_level=5,
+    )
+    assert r1.game_design_score != r2.game_design_score, "Config should change GDS"
+
+
+# ── GoldGameCritical ─────────────────────────────────────
+
+
+def test_goldgame_critical_basic():
+    """GoldGameCritical with no crits should work."""
+    config = GoldGameCritical.Config(critical_chance=0.0)
+    result = analyze(
+        initial_state=GoldGameCritical.initial_state(),
+        is_terminal=GoldGameCritical.is_terminal,
+        get_transitions=GoldGameCritical.get_transitions,
+        compute_intrinsic_desire=GoldGameCritical.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    assert result.game_design_score > 0, f"GDS = {result.game_design_score}"
+
+
+def test_goldgame_critical_with_steal():
+    """Adding steal should change GDS."""
+    no_steal = GoldGameCritical.Config(critical_chance=0.1, steal_percentage=0.0)
+    with_steal = GoldGameCritical.Config(critical_chance=0.1, steal_percentage=0.2)
+
+    r1 = analyze(
+        initial_state=GoldGameCritical.initial_state(),
+        is_terminal=GoldGameCritical.is_terminal,
+        get_transitions=GoldGameCritical.get_transitions,
+        compute_intrinsic_desire=GoldGameCritical.compute_intrinsic_desire,
+        config=no_steal,
+        nest_level=5,
+    )
+    r2 = analyze(
+        initial_state=GoldGameCritical.initial_state(),
+        is_terminal=GoldGameCritical.is_terminal,
+        get_transitions=GoldGameCritical.get_transitions,
+        compute_intrinsic_desire=GoldGameCritical.compute_intrinsic_desire,
+        config=with_steal,
+        nest_level=5,
+    )
+    assert r1.game_design_score != r2.game_design_score, "Steal should change GDS"
+
+
+def test_goldgame_critical_geometric():
+    """Geometric reward type should also work."""
+    config = GoldGameCritical.Config(
+        reward_type="geometric",
+        critical_chance=0.1,
+        steal_percentage=0.1,
+    )
+    result = analyze(
+        initial_state=GoldGameCritical.initial_state(),
+        is_terminal=GoldGameCritical.is_terminal,
+        get_transitions=GoldGameCritical.get_transitions,
+        compute_intrinsic_desire=GoldGameCritical.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+    )
+    assert result.game_design_score > 0, f"GDS = {result.game_design_score}"
+
+
+# ── Monte Carlo Simulation ────────────────────────────────
+
+
+def test_simulate_coin_toss():
+    """Monte Carlo GDS for coin toss should approximate exact GDS."""
+    result = simulate_gds(
+        initial_state=CoinToss.initial_state(),
+        is_terminal=CoinToss.is_terminal,
+        get_transitions=CoinToss.get_transitions,
+        compute_intrinsic_desire=CoinToss.compute_intrinsic_desire,
+        nest_level=5,
+        num_simulations=10000,
+        seed=42,
+    )
+    assert approx(result["gds_sim"], result["gds_exact"], tolerance=0.05), \
+        f"Sim={result['gds_sim']:.4f}, Exact={result['gds_exact']:.4f}"
+
+
+def test_simulate_hpgame():
+    """Monte Carlo GDS for HpGame should approximate exact GDS."""
+    result = simulate_gds(
+        initial_state=HpGame.initial_state(),
+        is_terminal=HpGame.is_terminal,
+        get_transitions=HpGame.get_transitions,
+        compute_intrinsic_desire=HpGame.compute_intrinsic_desire,
+        nest_level=5,
+        num_simulations=10000,
+        seed=42,
+    )
+    assert result["relative_error"] < 0.1, \
+        f"Relative error {result['relative_error']:.3f} too high"
+
+
+def test_simulate_hpgame_rage():
+    """Monte Carlo GDS for HpGame_Rage should approximate exact GDS."""
+    config = HpGameRage.Config(critical_chance=0.10)
+    result = simulate_gds(
+        initial_state=HpGameRage.initial_state(),
+        is_terminal=HpGameRage.is_terminal,
+        get_transitions=HpGameRage.get_transitions,
+        compute_intrinsic_desire=HpGameRage.compute_intrinsic_desire,
+        config=config,
+        nest_level=5,
+        num_simulations=10000,
+        seed=42,
+    )
+    assert result["relative_error"] < 0.15, \
+        f"Relative error {result['relative_error']:.3f} too high"
+
+
+# ── Edge cases ─────────────────────────────────────────────
 
 
 def test_nest_level_limit():
