@@ -1,5 +1,7 @@
 # Theory of Anticipation — Extended Research
 
+[![Tests](https://github.com/Taru0208/anticipation-theory/actions/workflows/test.yml/badge.svg)](https://github.com/Taru0208/anticipation-theory/actions/workflows/test.yml)
+
 > **This is an independent research fork** of the [Theory of Anticipation (ToA)](https://github.com/akalouis/anticipation-theory) by Jeeheon (Lloyd) Oh ([Farseer Co., Ltd.](https://github.com/akalouis)).
 >
 > **Original work:**
