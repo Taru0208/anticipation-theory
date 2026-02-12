@@ -623,6 +623,84 @@ def test_nest_level_limit():
         pass
 
 
+# ── Player Choice Paradox ─────────────────────────────────
+
+
+def test_choice_random_play_gds():
+    """Tactical combat with random play should produce GDS > 0.4."""
+    from experiments.player_choice import build_choice_game, random_play
+    init, is_term, trans, desire = build_choice_game(5, random_play, random_play)
+    result = analyze(
+        initial_state=init(), is_terminal=is_term,
+        get_transitions=trans, compute_intrinsic_desire=desire, nest_level=5,
+    )
+    assert approx(result.game_design_score, 0.527, tolerance=0.02), \
+        f"GDS = {result.game_design_score}, expected ~0.527"
+
+
+def test_choice_nash_reduces_gds():
+    """Nash equilibrium should produce LOWER GDS than random play."""
+    from experiments.player_choice import build_choice_game, random_play, compute_nash_equilibrium
+    nash_model, _ = compute_nash_equilibrium(5)
+
+    init_r, _, trans_r, des_r = build_choice_game(5, random_play, random_play)
+    init_n, _, trans_n, des_n = build_choice_game(5, nash_model, nash_model)
+
+    r_random = analyze(initial_state=init_r(), is_terminal=lambda s: s[0]<=0 or s[1]<=0,
+                       get_transitions=trans_r, compute_intrinsic_desire=des_r, nest_level=5)
+    r_nash = analyze(initial_state=init_n(), is_terminal=lambda s: s[0]<=0 or s[1]<=0,
+                     get_transitions=trans_n, compute_intrinsic_desire=des_n, nest_level=5)
+
+    assert r_nash.game_design_score < r_random.game_design_score, \
+        f"Nash GDS {r_nash.game_design_score} should be < Random GDS {r_random.game_design_score}"
+
+
+def test_choice_pure_strategy_zero_gds():
+    """Pure strategy (always same action) should produce GDS = 0."""
+    from experiments.player_choice import build_choice_game, aggressive_play
+    init, is_term, trans, desire = build_choice_game(5, aggressive_play, aggressive_play)
+    result = analyze(
+        initial_state=init(), is_terminal=is_term,
+        get_transitions=trans, compute_intrinsic_desire=desire, nest_level=5,
+    )
+    assert result.game_design_score < 0.01, \
+        f"Pure strategy GDS = {result.game_design_score}, expected ~0"
+
+
+# ── Unbound Conjecture ───────────────────────────────────
+
+
+def test_unbound_bestofn_grows():
+    """Best-of-N GDS should grow with N."""
+    from experiments.unbound_conjecture_v2 import BestOfN, measure_gds
+    gds_3 = measure_gds(BestOfN(n_rounds=5), nest_level=5)["gds"]
+    gds_9 = measure_gds(BestOfN(n_rounds=17), nest_level=5)["gds"]
+    assert gds_9 > gds_3, f"GDS should grow: depth 3={gds_3}, depth 9={gds_9}"
+
+
+def test_unbound_bestofn_exceeds_one():
+    """Best-of-N should exceed GDS 1.0 at sufficient depth."""
+    from experiments.unbound_conjecture_v2 import BestOfN, measure_gds
+    r = measure_gds(BestOfN(n_rounds=33), nest_level=10)
+    assert r["gds"] > 1.0, f"GDS = {r['gds']}, expected > 1.0 at depth 17"
+
+
+def test_unbound_combat_grows():
+    """Simple combat GDS should grow with HP."""
+    from experiments.unbound_conjecture_v2 import ScalableCombat, measure_gds
+    gds_3 = measure_gds(ScalableCombat(max_hp=3), nest_level=5)["gds"]
+    gds_10 = measure_gds(ScalableCombat(max_hp=10), nest_level=5)["gds"]
+    assert gds_10 > gds_3, f"GDS should grow: hp3={gds_3}, hp10={gds_10}"
+
+
+def test_unbound_goldgame_grows():
+    """GoldGame GDS should grow with turns."""
+    from experiments.unbound_conjecture_v2 import GoldGameMultiplicative, measure_gds
+    gds_3 = measure_gds(GoldGameMultiplicative(max_turns=3), nest_level=5)["gds"]
+    gds_10 = measure_gds(GoldGameMultiplicative(max_turns=10), nest_level=5)["gds"]
+    assert gds_10 > gds_3, f"GDS should grow: t3={gds_3}, t10={gds_10}"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     passed = 0
