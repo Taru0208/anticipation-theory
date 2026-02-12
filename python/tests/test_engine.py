@@ -1,4 +1,11 @@
-"""Tests for the core analysis engine, verified against C++ reference implementation."""
+"""Tests for the core analysis engine, verified against C++ reference implementation.
+
+42 tests covering:
+- 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
+- Monte Carlo simulation verification
+- Player Choice Paradox (Nash vs random play)
+- Unbound Conjecture (GDS growth with depth)
+"""
 
 import math
 import sys
