@@ -1,11 +1,12 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-53 tests covering:
+56 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
 - Unbound Conjecture (GDS growth with depth, superlinear growth)
 - Education model (non-game application)
+- Convergence test (Unbound vs Anti-Unbound classification)
 - Exact formulas (A₂ total weight = (T-1)/4)
 - CLT scaling (A₁ ~ 1/√T)
 """
@@ -906,6 +907,45 @@ def test_a1_clt_scaling():
         assert abs(sv - mean_val) / mean_val < 0.1, (
             f"A₁√T = {sv:.4f}, mean = {mean_val:.4f} — should be within 10%"
         )
+
+
+# --- Convergence test: Unbound vs Anti-Unbound ---
+
+def test_chaotic_quiz_grows():
+    """Chaotic quiz (independent 50/50) should show Unbound-like GDS growth."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from convergence_test import build_chaotic_quiz, run_model
+    results = run_model("Chaotic", build_chaotic_quiz, [5, 11, 17])
+    # GDS should increase with length
+    assert results[2][1] > results[0][1], (
+        f"Chaotic quiz GDS should grow: {results[0][1]:.4f} → {results[2][1]:.4f}"
+    )
+    # Growth rate should be positive
+    growth = (results[2][1] - results[0][1]) / (17 - 5)
+    assert growth > 0.01, f"Growth rate {growth:.4f} should be > 0.01"
+
+
+def test_normal_quiz_shrinks():
+    """Normal quiz (knowledge → convergence) should show Anti-Unbound behavior."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from convergence_test import build_normal_quiz, run_model
+    results = run_model("Normal", build_normal_quiz, [5, 11, 17])
+    # GDS should decrease with length
+    assert results[2][1] < results[0][1], (
+        f"Normal quiz GDS should shrink: {results[0][1]:.4f} → {results[2][1]:.4f}"
+    )
+
+
+def test_convergence_is_the_key():
+    """The key structural property: independent trials → Unbound, convergent → Anti-Unbound."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from convergence_test import build_chaotic_quiz, build_normal_quiz, run_model
+    chaotic = run_model("Chaotic", build_chaotic_quiz, [15])
+    normal = run_model("Normal", build_normal_quiz, [15])
+    # Chaotic (independent) should have higher GDS than normal (convergent) at length 15
+    assert chaotic[0][1] > normal[0][1], (
+        f"Chaotic GDS ({chaotic[0][1]:.4f}) should exceed Normal GDS ({normal[0][1]:.4f}) at length 15"
+    )
 
 
 if __name__ == "__main__":
