@@ -75,6 +75,12 @@ The following experiments are implemented as demonstrations and test cases for t
 
 -----
 
+## Research Blog
+
+Detailed writeups of each experiment and discovery: **[taru0208.github.io/toa-research](https://taru0208.github.io/toa-research/)**
+
+-----
+
 ## Python Port & Extended Research
 
 This fork includes a complete Python port of the C++ analysis engine, enabling rapid experimentation on any platform.
@@ -107,8 +113,10 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | Experiment | Key Finding |
 |------------|-------------|
 | **Genetic Algorithm Optimizer** | Discovered a symmetric game with GDS = 0.979 (77.8% better than hand-designed HpGame\_Rage) |
+| **GA + Accumulation Mechanics** | GDS = 1.429 — resource accumulation creates the highest-scoring game found |
 | **Optimal Game Analysis** | Optimal kill probability ≈ 50%; "moderate lethality" maximizes engagement |
-| **Best-of-N Coin Toss** | GDS grows with N even for identical transitions — pure form of Unbound Conjecture |
+| **Unbound Conjecture v2** | 6 game classes all show linear GDS growth with depth; Best-of-N exceeds GDS 1.0 at depth 17 |
+| **Player Choice Paradox** | Nash equilibrium play reduces GDS by 5–7% — optimal strategy is less fun |
 | **MOBA Lane Model** | GDS = 0.540 with highest strategic depth ratio (65.9%) of all tested games |
 | **Perspective Desire Proof** | Mathematically proved that naive and perspective formulations are equivalent |
 | **Narrative Structure** | Rage mechanics amplify narrative arc variance 10× |
