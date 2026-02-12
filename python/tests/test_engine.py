@@ -1,12 +1,13 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-56 tests covering:
+59 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
 - Unbound Conjecture (GDS growth with depth, superlinear growth)
 - Education model (non-game application)
 - Convergence test (Unbound vs Anti-Unbound classification)
+- Entropy Preservation Conjecture (uniform entropy → Unbound, decaying → Anti-Unbound)
 - Exact formulas (A₂ total weight = (T-1)/4)
 - CLT scaling (A₁ ~ 1/√T)
 """
@@ -945,6 +946,54 @@ def test_convergence_is_the_key():
     # Chaotic (independent) should have higher GDS than normal (convergent) at length 15
     assert chaotic[0][1] > normal[0][1], (
         f"Chaotic GDS ({chaotic[0][1]:.4f}) should exceed Normal GDS ({normal[0][1]:.4f}) at length 15"
+    )
+
+
+# --- Entropy Preservation Conjecture ---
+
+def test_entropy_preserved_in_unbound_games():
+    """All Unbound games have constant per-state entropy."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from entropy_preservation import (
+        build_best_of_n, build_hp_game, build_gold_game,
+        compute_entropy_profile, entropy
+    )
+    # Best-of-N: all states should have H = 1.0
+    bon = compute_entropy_profile(build_best_of_n, [9])
+    assert abs(bon[0][2] - 1.0) < 0.001, f"Best-of-N avg entropy should be 1.0, got {bon[0][2]}"
+    assert abs(bon[0][3] - 1.0) < 0.001, f"Best-of-N min entropy should be 1.0, got {bon[0][3]}"
+
+    # HP Game: all states should have H = 1.0
+    hp = compute_entropy_profile(build_hp_game, [5])
+    assert abs(hp[0][2] - 1.0) < 0.001, f"HP avg entropy should be 1.0, got {hp[0][2]}"
+
+    # GoldGame: all states should have H ≈ 1.81
+    gold = compute_entropy_profile(build_gold_game, [5])
+    assert abs(gold[0][2] - 1.8088) < 0.01, f"GoldGame avg entropy should be ~1.81, got {gold[0][2]}"
+    assert abs(gold[0][3] - 1.8088) < 0.01, f"GoldGame min entropy should be ~1.81, got {gold[0][3]}"
+
+
+def test_entropy_decays_in_antibound():
+    """Anti-Unbound quiz has decaying min entropy."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from entropy_preservation import build_normal_quiz, compute_entropy_profile
+    quiz_short = compute_entropy_profile(build_normal_quiz, [5])
+    quiz_long = compute_entropy_profile(build_normal_quiz, [15])
+    # Min entropy should decrease with quiz length
+    assert quiz_long[0][3] < quiz_short[0][3], (
+        f"Longer quiz min entropy ({quiz_long[0][3]:.4f}) should be less than shorter ({quiz_short[0][3]:.4f})"
+    )
+    # Min entropy should be very low for long quizzes
+    assert quiz_long[0][3] < 0.01, f"Long quiz min entropy should be < 0.01, got {quiz_long[0][3]:.4f}"
+
+
+def test_goldgame_gds_grows():
+    """GoldGame (uniform entropy 1.81) should show Unbound GDS growth."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
+    from entropy_preservation import build_gold_game, compute_entropy_profile
+    results = compute_entropy_profile(build_gold_game, [3, 7])
+    assert results[1][1] > results[0][1], (
+        f"GoldGame GDS should grow: {results[0][1]:.4f} → {results[1][1]:.4f}"
     )
 
 
