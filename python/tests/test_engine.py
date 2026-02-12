@@ -1,10 +1,11 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-42 tests covering:
+48 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
 - Unbound Conjecture (GDS growth with depth)
+- Education model (non-game application)
 """
 
 import math
@@ -706,6 +707,90 @@ def test_unbound_goldgame_grows():
     gds_3 = measure_gds(GoldGameMultiplicative(max_turns=3), nest_level=5)["gds"]
     gds_10 = measure_gds(GoldGameMultiplicative(max_turns=10), nest_level=5)["gds"]
     assert gds_10 > gds_3, f"GDS should grow: t3={gds_3}, t10={gds_10}"
+
+
+# ── Education Model ──────────────────────────────────────
+
+
+def test_education_easy_beats_hard():
+    """Easy quizzes should have higher GDS than hard quizzes."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_flat_curve
+    easy = QuizConfig(num_questions=8, difficulties=make_flat_curve(8, 1.0), difficulty_mode="curve")
+    hard = QuizConfig(num_questions=8, difficulties=make_flat_curve(8, 5.0), difficulty_mode="curve")
+    r_easy = analyze_quiz(easy)
+    r_hard = analyze_quiz(hard)
+    assert r_easy.game_design_score > r_hard.game_design_score * 10, \
+        f"Easy GDS={r_easy.game_design_score}, Hard GDS={r_hard.game_design_score}"
+
+
+def test_education_binary_beats_graduated():
+    """Binary pass/fail should produce higher GDS than graduated scoring."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_flat_curve
+    binary = QuizConfig(num_questions=8, difficulties=make_flat_curve(8, 1.0),
+                       difficulty_mode="curve", graduated_desire=False)
+    graduated = QuizConfig(num_questions=8, difficulties=make_flat_curve(8, 1.0),
+                          difficulty_mode="curve", graduated_desire=True)
+    r_bin = analyze_quiz(binary)
+    r_grad = analyze_quiz(graduated)
+    assert r_bin.game_design_score > r_grad.game_design_score, \
+        f"Binary GDS={r_bin.game_design_score}, Graduated GDS={r_grad.game_design_score}"
+
+
+def test_education_forgetting_reduces_gds():
+    """Forgetting mechanics should reduce quiz GDS (unlike games)."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_ascending_curve
+    no_forget = QuizConfig(num_questions=8, difficulties=make_ascending_curve(8, 1.0, 5.0),
+                          difficulty_mode="curve", incorrect_loss=0)
+    forget = QuizConfig(num_questions=8, difficulties=make_ascending_curve(8, 1.0, 5.0),
+                       difficulty_mode="curve", incorrect_loss=1)
+    r_no = analyze_quiz(no_forget)
+    r_forget = analyze_quiz(forget)
+    assert r_no.game_design_score > r_forget.game_design_score, \
+        f"No-forget GDS={r_no.game_design_score}, Forget GDS={r_forget.game_design_score}"
+
+
+def test_education_anti_unbound():
+    """Quiz GDS should decrease (not increase) with length — opposite of games."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_ascending_curve
+    short = QuizConfig(num_questions=3, max_knowledge=6, mastery_threshold=2,
+                      difficulties=make_ascending_curve(3, 1.0, 2.0), difficulty_mode="curve")
+    long = QuizConfig(num_questions=15, max_knowledge=15, mastery_threshold=7,
+                     difficulties=make_ascending_curve(15, 1.0, 9.0), difficulty_mode="curve")
+    r_short = analyze_quiz(short)
+    r_long = analyze_quiz(long)
+    assert r_short.game_design_score > r_long.game_design_score, \
+        f"Short GDS={r_short.game_design_score}, Long GDS={r_long.game_design_score}"
+
+
+def test_education_goldilocks_zone():
+    """Peak GDS should be at moderate difficulty, not easiest or hardest."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_flat_curve
+    # Low mastery threshold so all difficulties are "winnable"
+    results = []
+    for d in [0, 1, 2, 3, 5]:
+        config = QuizConfig(num_questions=8, difficulties=make_flat_curve(8, float(d)),
+                           difficulty_mode="curve", mastery_threshold=1)
+        r = analyze_quiz(config)
+        results.append((d, r.game_design_score))
+    # d=1 should beat d=0 (too easy) and d=5 (too hard)
+    gds_0 = next(g for d, g in results if d == 0)
+    gds_1 = next(g for d, g in results if d == 1)
+    gds_5 = next(g for d, g in results if d == 5)
+    assert gds_1 > gds_0, f"d=1 GDS={gds_1} should beat d=0 GDS={gds_0}"
+    assert gds_1 > gds_5, f"d=1 GDS={gds_1} should beat d=5 GDS={gds_5}"
+
+
+def test_education_excitement_at_threshold():
+    """States near mastery threshold should have highest A₁."""
+    from experiments.education_model import QuizConfig, analyze_quiz, make_ascending_curve
+    config = QuizConfig(num_questions=8, difficulties=make_ascending_curve(8, 0.5, 3.0),
+                       difficulty_mode="curve", mastery_threshold=4)
+    analysis = analyze_quiz(config)
+    # State (3, 7) — one below mastery, last question — should have A₁ = 0.5
+    state_near = (3, 7)  # K=3, Q=7
+    if state_near in analysis.state_nodes:
+        a1 = analysis.state_nodes[state_near].a[0]
+        assert approx(a1, 0.5, tolerance=0.01), f"A₁ at threshold-1, last Q = {a1}, expected 0.5"
 
 
 if __name__ == "__main__":
