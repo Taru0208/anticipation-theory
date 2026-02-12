@@ -1,11 +1,13 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-48 tests covering:
+53 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
-- Unbound Conjecture (GDS growth with depth)
+- Unbound Conjecture (GDS growth with depth, superlinear growth)
 - Education model (non-game application)
+- Exact formulas (A₂ total weight = (T-1)/4)
+- CLT scaling (A₁ ~ 1/√T)
 """
 
 import math
@@ -791,6 +793,119 @@ def test_education_excitement_at_threshold():
     if state_near in analysis.state_nodes:
         a1 = analysis.state_nodes[state_near].a[0]
         assert approx(a1, 0.5, tolerance=0.01), f"A₁ at threshold-1, last Q = {a1}, expected 0.5"
+
+
+# ── Unbound Conjecture — Superlinear Growth ────────────────────────
+
+
+def _analyze_bestofn(target, nest_level=10):
+    """Helper: analyze Best-of-(2*target-1) coin toss."""
+    def is_terminal(state):
+        return state[0] >= target or state[1] >= target
+    def get_transitions(state, config=None):
+        w1, w2 = state
+        if w1 >= target or w2 >= target:
+            return []
+        return [(0.5, (w1 + 1, w2)), (0.5, (w1, w2 + 1))]
+    def compute_desire(state):
+        return 1.0 if state[0] >= target else 0.0
+    return analyze(
+        initial_state=(0, 0),
+        is_terminal=is_terminal,
+        get_transitions=get_transitions,
+        compute_intrinsic_desire=compute_desire,
+        nest_level=nest_level,
+    )
+
+
+def test_a2_exact_formula():
+    """Σ(reach × A₂) = (T-1)/4 exactly for all T."""
+    for target in [3, 5, 8, 10, 15, 20]:
+        result = _analyze_bestofn(target, 4)
+        total_a2 = 0.0
+        for state in result.states:
+            w1, w2 = state
+            if w1 < target and w2 < target:
+                n = w1 + w2
+                rp = math.comb(n, w1) * (0.5 ** n)
+                a2 = result.state_nodes[state].a[1]
+                total_a2 += rp * a2
+        expected = (target - 1) / 4.0
+        assert abs(total_a2 - expected) < 1e-10, (
+            f"T={target}: Σ(reach×A₂)={total_a2}, expected {expected}"
+        )
+
+
+def test_gds_superlinear_growth():
+    """GDS grows superlinearly (GDS/T increases for large T)."""
+    # At small T, GDS/T decreases (A₁ dominates). But for T >= 15, GDS/T increases.
+    results = []
+    for t in [15, 20, 25, 30]:
+        r = _analyze_bestofn(t, 10)
+        results.append((t, r.game_design_score))
+    # GDS/T should be increasing
+    for i in range(len(results) - 1):
+        t1, g1 = results[i]
+        t2, g2 = results[i + 1]
+        ratio1 = g1 / t1
+        ratio2 = g2 / t2
+        assert ratio2 > ratio1, (
+            f"GDS/T should increase: T={t1} → {ratio1:.4f}, T={t2} → {ratio2:.4f}"
+        )
+
+
+def test_component_hierarchy():
+    """Higher components grow as higher powers of T."""
+    # A₃ ~ T^0.5, A₄ ~ T^1, A₅ ~ T^1.8 (each successive power increases)
+    r10 = _analyze_bestofn(10, 10)
+    r30 = _analyze_bestofn(30, 10)
+    # Compute growth ratios: A_k(T=30) / A_k(T=10)
+    ratios = []
+    for k in range(2, 7):  # A₃ through A₇
+        g10 = r10.gds_components[k]
+        g30 = r30.gds_components[k]
+        if g10 > 0.001:
+            ratio = g30 / g10
+            ratios.append(ratio)
+    # Each successive ratio should be larger (higher power of T)
+    for i in range(len(ratios) - 1):
+        assert ratios[i + 1] > ratios[i], (
+            f"Component growth should accelerate: ratio[{i}]={ratios[i]:.2f}, "
+            f"ratio[{i+1}]={ratios[i+1]:.2f}"
+        )
+
+
+def test_nest_level_amplification():
+    """More nest levels → faster GDS growth."""
+    gds_by_nl = {}
+    for nl in [3, 5, 10]:
+        r = _analyze_bestofn(25, nl)
+        gds_by_nl[nl] = r.game_design_score
+    assert gds_by_nl[5] > gds_by_nl[3], "n=5 should give higher GDS than n=3"
+    assert gds_by_nl[10] > gds_by_nl[5], "n=10 should give higher GDS than n=5"
+    # The difference should be substantial (not just rounding)
+    assert gds_by_nl[10] > 2 * gds_by_nl[3], (
+        f"n=10 GDS ({gds_by_nl[10]:.2f}) should be >2x n=3 ({gds_by_nl[3]:.2f})"
+    )
+
+
+def test_a1_clt_scaling():
+    """A₁ at balanced states scales as 1/√T (CLT prediction)."""
+    # A₁(T//2, T//2) × √T should converge to a constant
+    scaled_values = []
+    for t in [10, 15, 20, 25, 30]:
+        result = _analyze_bestofn(t, 2)
+        w = t // 2
+        state = (w, w)
+        a1 = result.state_nodes[state].a[0]
+        scaled = a1 * math.sqrt(t)
+        scaled_values.append(scaled)
+    # All scaled values should be close to each other (within 10%)
+    mean_val = sum(scaled_values) / len(scaled_values)
+    for sv in scaled_values:
+        assert abs(sv - mean_val) / mean_val < 0.1, (
+            f"A₁√T = {sv:.4f}, mean = {mean_val:.4f} — should be within 10%"
+        )
 
 
 if __name__ == "__main__":
