@@ -91,7 +91,7 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v      # Run all 35 tests
+python3 -m pytest tests/ -v      # Run all 59 tests
 python3 experiments/moba_model.py # Run MOBA analysis
 ```
 
@@ -123,6 +123,10 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | **Perspective Desire Proof** | Mathematically proved that naive and perspective formulations are equivalent |
 | **Narrative Structure** | Rage mechanics amplify narrative arc variance 10× |
 | **GameFlow Bridge** | Maps GameFlow (2005) qualitative elements to computable ToA metrics |
+| **Education Model** | ToA applied to quizzes — Goldilocks zone (P≈50-80%), binary > graduated (+42-65%), longer quizzes are *less* engaging (Anti-Unbound) |
+| **Superlinear Growth** | GDS grows as T^1.35, not linear. Each A\_k component grows as T^(k−1). Exact formula: Σ(reach×A₂) = (T−1)/4 |
+| **Convergence Test** | Unbound iff independent trials; Anti-Unbound iff state accumulation converges probability |
+| **Entropy Preservation** | GDS → ∞ iff per-state conditional entropy is uniform. Verified across 4 game classes |
 
 -----
 
