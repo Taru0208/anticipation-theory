@@ -91,7 +91,7 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v      # Run all 59 tests
+python3 -m pytest tests/ -v      # Run all 65 tests
 python3 experiments/moba_model.py # Run MOBA analysis
 ```
 
@@ -127,6 +127,8 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | **Superlinear Growth** | GDS grows as T^1.35, not linear. Each A\_k component grows as T^(k−1). Exact formula: Σ(reach×A₂) = (T−1)/4 |
 | **Convergence Test** | Unbound iff independent trials; Anti-Unbound iff state accumulation converges probability |
 | **Entropy Preservation** | GDS → ∞ iff per-state conditional entropy is uniform. Verified across 4 game classes |
+| **Superlinear Mechanism** | A₁ = \|ΔP\|/2 exactly. Recursive amplification: each A_k captures variation of A_{k-1}, amplifying by ~T per level |
+| **Exact Formulas** | Σ(reach × A₂) = (T-1)/4 exactly, Δ(A₂) = 1/4 per depth. A₁ → 2/√π × √T. Power law: A_k ~ T^{α_k} with α accelerating |
 
 -----
 

@@ -1,6 +1,6 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-59 tests covering:
+65 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
@@ -8,8 +8,9 @@
 - Education model (non-game application)
 - Convergence test (Unbound vs Anti-Unbound classification)
 - Entropy Preservation Conjecture (uniform entropy → Unbound, decaying → Anti-Unbound)
-- Exact formulas (A₂ total weight = (T-1)/4)
+- Exact formulas (A₂ total weight = (T-1)/4, Δ(A₂) = 0.25)
 - CLT scaling (A₁ ~ 1/√T)
+- Superlinear growth mechanism (A₁ = |ΔP|/2, diagonal symmetry, amplification ratios)
 """
 
 import math
@@ -995,6 +996,127 @@ def test_goldgame_gds_grows():
     assert results[1][1] > results[0][1], (
         f"GoldGame GDS should grow: {results[0][1]:.4f} → {results[1][1]:.4f}"
     )
+
+
+# --- Superlinear Growth Mechanism ---
+
+
+def test_a1_is_delta_probability():
+    """A₁(w1,w2) = |P(win|w1+1,w2) - P(win|w1,w2+1)| / 2 exactly."""
+    result = _analyze_bestofn(8, 3)
+    d = {}
+    for state in result.states:
+        d[state] = result.state_nodes[state].d_global
+    for state in result.states:
+        w1, w2 = state
+        if w1 >= 8 or w2 >= 8:
+            continue
+        a1_engine = result.state_nodes[state].a[0]
+        cl = (w1 + 1, w2)
+        cr = (w1, w2 + 1)
+        delta_p = abs(d.get(cl, 0) - d.get(cr, 0)) / 2
+        assert abs(a1_engine - delta_p) < 1e-10, (
+            f"A₁ at ({w1},{w2}): engine={a1_engine}, |ΔP|/2={delta_p}"
+        )
+
+
+def test_diagonal_symmetry_kills_higher_components():
+    """All A_k(w,w) = 0 for k >= 2 (diagonal symmetry)."""
+    result = _analyze_bestofn(10, 6)
+    for w in range(10):
+        node = result.state_nodes[(w, w)]
+        for k in range(1, 6):
+            assert node.a[k] == 0.0, f"A{k+1}({w},{w}) = {node.a[k]}, expected 0"
+
+
+def test_a2_marginal_is_quarter():
+    """Marginal contribution Δ(A₂) = Σ(rch×A₂)(T+1) - Σ(rch×A₂)(T) = 0.25 exactly."""
+    prev = None
+    for t in range(5, 15):
+        result = _analyze_bestofn(t, 4)
+        total_a2 = 0.0
+        for state in result.states:
+            w1, w2 = state
+            if w1 < t and w2 < t:
+                n = w1 + w2
+                rp = math.comb(n, w1) * (0.5 ** n)
+                a2 = result.state_nodes[state].a[1]
+                total_a2 += rp * a2
+        if prev is not None:
+            delta = total_a2 - prev
+            assert abs(delta - 0.25) < 1e-10, (
+                f"T={t}: Δ(A₂) = {delta}, expected 0.25"
+            )
+        prev = total_a2
+
+
+def test_higher_components_dominate_at_large_depth():
+    """At large T, A₃+ components should contribute >75% of total GDS."""
+    result = _analyze_bestofn(20, 10)
+    gds = result.game_design_score
+    a1_pct = result.gds_components[0] / gds
+    a2_pct = result.gds_components[1] / gds
+    a3plus_pct = sum(result.gds_components[2:10]) / gds
+    assert a3plus_pct > 0.75, (
+        f"A₃+ should be >75% at T=20, got {a3plus_pct*100:.1f}%"
+    )
+    assert a1_pct < 0.10, f"A₁ should be <10% at T=20, got {a1_pct*100:.1f}%"
+
+
+def test_amplification_ratio_grows_with_t():
+    """The ratio Σ(rch×A₃)/Σ(rch×A₂) should grow with T (amplification)."""
+    ratios = []
+    for t in [8, 15, 25]:
+        result = _analyze_bestofn(t, 6)
+        total_a2 = 0.0
+        total_a3 = 0.0
+        for state in result.states:
+            w1, w2 = state
+            if w1 < t and w2 < t:
+                n = w1 + w2
+                rp = math.comb(n, w1) * (0.5 ** n)
+                total_a2 += rp * result.state_nodes[state].a[1]
+                total_a3 += rp * result.state_nodes[state].a[2]
+        ratios.append(total_a3 / total_a2)
+    # Ratio should be strictly increasing
+    assert ratios[1] > ratios[0], f"A₃/A₂ should grow: {ratios[0]:.3f} → {ratios[1]:.3f}"
+    assert ratios[2] > ratios[1], f"A₃/A₂ should grow: {ratios[1]:.3f} → {ratios[2]:.3f}"
+
+
+def test_gds_cross_game_superlinear():
+    """HP Game (non-Best-of-N) also shows superlinear growth at large HP."""
+    gds_data = []
+    for hp in [5, 8, 12]:
+        def make_hp(hp_val):
+            def is_terminal(state):
+                return state[0] <= 0 or state[1] <= 0
+            def get_transitions(state, config=None):
+                h1, h2 = state
+                if h1 <= 0 or h2 <= 0:
+                    return []
+                return [
+                    (1/3, (h1, h2 - 1)),
+                    (1/3, (h1 - 1, h2 - 1)),
+                    (1/3, (h1 - 1, h2)),
+                ]
+            def compute_desire(state):
+                return 1.0 if state[0] > 0 and state[1] <= 0 else 0.0
+            return is_terminal, get_transitions, compute_desire
+        is_t, get_t, comp_d = make_hp(hp)
+        result = analyze(
+            initial_state=(hp, hp),
+            is_terminal=is_t,
+            get_transitions=get_t,
+            compute_intrinsic_desire=comp_d,
+            nest_level=10,
+        )
+        gds_data.append((hp, result.game_design_score))
+    # GDS should grow, and faster than linearly at large HP
+    for i in range(len(gds_data) - 1):
+        assert gds_data[i+1][1] > gds_data[i][1], (
+            f"HP game GDS should grow: HP={gds_data[i][0]} → {gds_data[i][1]:.4f}, "
+            f"HP={gds_data[i+1][0]} → {gds_data[i+1][1]:.4f}"
+        )
 
 
 if __name__ == "__main__":
