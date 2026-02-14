@@ -1244,6 +1244,133 @@ def test_coin_duel_rage_lower_gds():
         f"Rage GDS {rage.game_design_score:.4f} >= Base GDS {base.game_design_score:.4f}"
 
 
+# --- DraftWars tests ---
+
+from toa.games.draft_wars import DraftWars, simulate_battle
+
+
+def test_draft_wars_symmetric():
+    """DraftWars should be perfectly symmetric (d_global = 0.5)."""
+    result = analyze(
+        initial_state=DraftWars.initial_state(),
+        is_terminal=DraftWars.is_terminal,
+        get_transitions=DraftWars.get_transitions,
+        compute_intrinsic_desire=DraftWars.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    d0 = result.state_nodes[(0, 0, 0)].d_global
+    assert abs(d0 - 0.5) < 0.001, f"d_global = {d0}"
+
+
+def test_draft_wars_gds_reasonable():
+    """DraftWars GDS should be in range 0.3-0.5."""
+    result = analyze(
+        initial_state=DraftWars.initial_state(),
+        is_terminal=DraftWars.is_terminal,
+        get_transitions=DraftWars.get_transitions,
+        compute_intrinsic_desire=DraftWars.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    assert 0.3 < result.game_design_score < 0.5, \
+        f"GDS = {result.game_design_score}"
+
+
+def test_draft_wars_high_depth():
+    """DraftWars should have >55% depth ratio (highest among game concepts)."""
+    result = analyze(
+        initial_state=DraftWars.initial_state(),
+        is_terminal=DraftWars.is_terminal,
+        get_transitions=DraftWars.get_transitions,
+        compute_intrinsic_desire=DraftWars.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    a1 = result.gds_components[0]
+    depth = (result.game_design_score - a1) / result.game_design_score
+    assert depth > 0.55, f"Depth ratio = {depth:.2f}"
+
+
+def test_draft_wars_all_cards_drafted():
+    """All terminal states should have exactly 3 cards per player."""
+    result = analyze(
+        initial_state=DraftWars.initial_state(),
+        is_terminal=DraftWars.is_terminal,
+        get_transitions=DraftWars.get_transitions,
+        compute_intrinsic_desire=DraftWars.compute_intrinsic_desire,
+        nest_level=1,
+    )
+    for s in result.states:
+        if DraftWars.is_terminal(s):
+            hand1, hand2, turn = s
+            c1 = bin(hand1).count('1')
+            c2 = bin(hand2).count('1')
+            assert c1 == 3 and c2 == 3, f"State {s}: P1 has {c1}, P2 has {c2}"
+
+
+def test_draft_wars_battle_deterministic():
+    """Battle simulation should be deterministic given hands."""
+    # P1 gets cards 0,1,2 (atk=9, def=3), P2 gets 3,4,5 (atk=9, def=2)
+    r1 = simulate_battle(0b000111, 0b111000)
+    r2 = simulate_battle(0b000111, 0b111000)
+    assert r1 == r2
+
+
+def test_draft_wars_transitions_valid():
+    """All transitions should pick exactly one available card."""
+    state = (0, 0, 0)  # initial
+    trans = DraftWars.get_transitions(state)
+    assert len(trans) == 6, f"Expected 6 choices, got {len(trans)}"
+    total = sum(p for p, _ in trans)
+    assert abs(total - 1.0) < 0.001
+
+
+# --- ChainReaction tests ---
+
+from toa.games.chain_reaction import ChainReaction
+
+
+def test_chain_reaction_gds_positive():
+    """ChainReaction should have positive GDS."""
+    result = analyze(
+        initial_state=ChainReaction.initial_state(),
+        is_terminal=ChainReaction.is_terminal,
+        get_transitions=ChainReaction.get_transitions,
+        compute_intrinsic_desire=ChainReaction.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    assert result.game_design_score > 0.1, \
+        f"GDS = {result.game_design_score}"
+
+
+def test_chain_reaction_p1_advantage():
+    """P1 should have first-mover advantage in ChainReaction."""
+    result = analyze(
+        initial_state=ChainReaction.initial_state(),
+        is_terminal=ChainReaction.is_terminal,
+        get_transitions=ChainReaction.get_transitions,
+        compute_intrinsic_desire=ChainReaction.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    d0 = result.state_nodes[(0, 0, 0)].d_global
+    assert d0 > 0.5, f"Expected P1 advantage, d_global = {d0}"
+
+
+def test_chain_reaction_transitions_sum():
+    """All non-terminal ChainReaction states should have valid transitions."""
+    cfg = ChainReaction.Config()
+    for t1 in range(4):
+        for t2 in range(4):
+            for turn in range(9):
+                state = (t1, t2, turn)
+                if ChainReaction.is_terminal(state):
+                    continue
+                trans = ChainReaction.get_transitions(state, cfg)
+                if not trans:
+                    continue
+                total = sum(p for p, _ in trans)
+                assert abs(total - 1.0) < 0.01, \
+                    f"State {state}: prob sum = {total}"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     passed = 0
