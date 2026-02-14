@@ -91,7 +91,7 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v      # Run all 161 tests
+python3 -m pytest tests/ -v      # Run all 91 tests
 python3 experiments/moba_model.py # Run MOBA analysis
 ```
 
@@ -112,6 +112,7 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | CoinDuel | `python/toa/games/coin_duel.py` | Resource management + coin flipping (GDS 0.404) |
 | DraftWars | `python/toa/games/draft_wars.py` | Sequential card draft + auto-battle (GDS 0.377, 62% depth) |
 | ChainReaction | `python/toa/games/chain_reaction.py` | Territory control with cascade mechanics |
+| FFABattle | `python/toa/games/ffa_battle.py` | N-player free-for-all (GDS 0.429 at N=3, 67% depth) |
 
 ### Extended Experiments
 
@@ -136,6 +137,7 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | **Investment/Trading** | 6 financial instruments — day trading GDS 0.877 (2× HpGame!), stop options +132%, agency +782%, options ≡ slots structurally |
 | **Comeback Paradox** | Artificial comeback mechanics (desperation bonus) *decrease* GDS by 6%. Natural uncertainty outperforms designed reversals |
 | **Game Concept Comparison** | CoinDuel (0.404, 46% depth), DraftWars (0.377, 62% depth), ChainReaction (0.252, abstract). Card variance is critical — balanced cards halve GDS |
+| **Multiplayer Dynamics** | FFA battles: GDS/P(win) increases with N (1.02→1.64), depth ratio surges (45%→70%), focus fire halves GDS (-51.5%), elimination phases boost A₂ |
 
 -----
 
