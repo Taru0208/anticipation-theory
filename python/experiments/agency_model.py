@@ -865,10 +865,173 @@ def experiment_6_policy_impact_deep():
     print("  5. Dominant has low PI/GDS: trivial choice = low agency")
 
 
+def make_parametric_combat(max_hp, strike_dmg=1, heavy_dmg=2, heavy_hit_prob=0.5,
+                           guard_counter=1, guard_vs_heavy_block=0.5,
+                           guard_guard_chip=1):
+    """Create a combat game with tunable parameters.
+
+    This allows searching over the design space to find games with
+    better agency properties (high PI, low CPG).
+    """
+    actions = {}
+
+    for a1 in range(3):
+        for a2 in range(3):
+            if a1 == 0 and a2 == 0:  # Strike vs Strike
+                actions[(a1, a2)] = [(1.0, (-strike_dmg, -strike_dmg))]
+            elif a1 == 0 and a2 == 1:  # Strike vs Heavy
+                actions[(a1, a2)] = [
+                    (heavy_hit_prob, (-heavy_dmg, -strike_dmg)),
+                    (1-heavy_hit_prob, (0, -strike_dmg)),
+                ]
+            elif a1 == 0 and a2 == 2:  # Strike vs Guard
+                actions[(a1, a2)] = [(1.0, (-guard_counter, 0))]
+            elif a1 == 1 and a2 == 0:  # Heavy vs Strike
+                actions[(a1, a2)] = [
+                    (heavy_hit_prob, (-strike_dmg, -heavy_dmg)),
+                    (1-heavy_hit_prob, (-strike_dmg, 0)),
+                ]
+            elif a1 == 1 and a2 == 1:  # Heavy vs Heavy
+                actions[(a1, a2)] = [
+                    (heavy_hit_prob**2, (-heavy_dmg, -heavy_dmg)),
+                    (heavy_hit_prob*(1-heavy_hit_prob), (-heavy_dmg, 0)),
+                    ((1-heavy_hit_prob)*heavy_hit_prob, (0, -heavy_dmg)),
+                    ((1-heavy_hit_prob)**2, (-1, -1)),  # Both miss: chip
+                ]
+            elif a1 == 1 and a2 == 2:  # Heavy vs Guard
+                actions[(a1, a2)] = [
+                    (heavy_hit_prob, (0, -int(heavy_dmg * guard_vs_heavy_block))),
+                    (1-heavy_hit_prob, (-guard_counter, 0)),
+                ]
+            elif a1 == 2 and a2 == 0:  # Guard vs Strike
+                actions[(a1, a2)] = [(1.0, (0, -guard_counter))]
+            elif a1 == 2 and a2 == 1:  # Guard vs Heavy
+                actions[(a1, a2)] = [
+                    (heavy_hit_prob, (-int(heavy_dmg * guard_vs_heavy_block), 0)),
+                    (1-heavy_hit_prob, (0, -guard_counter)),
+                ]
+            elif a1 == 2 and a2 == 2:  # Guard vs Guard
+                actions[(a1, a2)] = [(1.0, (-guard_guard_chip, -guard_guard_chip))]
+
+    return ActionGame(max_hp, actions)
+
+
+def experiment_7_cpg_minimization():
+    """Search for combat game parameters that minimize the Choice Paradox Gap."""
+    print()
+    print("=" * 80)
+    print("EXPERIMENT 7: Minimizing the Choice Paradox Gap")
+    print("=" * 80)
+    print()
+    print("  Searching over combat game parameter space...")
+    print("  Goal: find a game where fun-optimal ≈ win-optimal (low CPG)")
+    print()
+
+    results = []
+    n_configs = 0
+
+    # Search over parameter space
+    for hp in [4, 5, 6]:
+        for strike_dmg in [1]:
+            for heavy_dmg in [2, 3]:
+                for heavy_hit in [0.3, 0.4, 0.5, 0.6, 0.7]:
+                    for guard_counter in [1, 2]:
+                        for guard_block in [0.3, 0.5, 0.7]:
+                            for gg_chip in [1]:
+                                n_configs += 1
+                                game = make_parametric_combat(
+                                    hp, strike_dmg, heavy_dmg, heavy_hit,
+                                    guard_counter, guard_block, gg_chip
+                                )
+
+                                try:
+                                    cpg, fun_opt, win_opt = compute_choice_paradox_gap(game, resolution=20)
+                                    pi, _ = compute_policy_impact(game)
+                                    random_gds = compute_gds_for_policy(
+                                        game, lambda s: [1/3, 1/3, 1/3]
+                                    ).game_design_score
+
+                                    results.append({
+                                        'hp': hp, 'heavy_dmg': heavy_dmg,
+                                        'heavy_hit': heavy_hit, 'guard_counter': guard_counter,
+                                        'guard_block': guard_block,
+                                        'cpg': cpg, 'pi': pi, 'gds': random_gds,
+                                        'fun_gds': fun_opt[0], 'fun_d0': fun_opt[1],
+                                        'win_gds': win_opt[0], 'win_d0': win_opt[1],
+                                    })
+                                except Exception:
+                                    pass  # Skip invalid configs
+
+    print(f"  Tested {n_configs} configurations, {len(results)} valid")
+    print()
+
+    # Sort by CPG (ascending) — filter for reasonable games (PI > 0.05)
+    good_results = [r for r in results if r['pi'] > 0.05 and r['gds'] > 0.3]
+    good_results.sort(key=lambda r: r['cpg'])
+
+    print(f"  TOP 10 LOWEST CPG (with PI > 0.05, GDS > 0.3):")
+    print(f"  {'HP':>3}  {'HvD':>3}  {'HvH':>4}  {'GC':>3}  {'GB':>4}  {'CPG':>6}  {'PI':>6}  {'GDS':>6}  {'maxGDS':>7}  {'FunD₀':>6}  {'WinD₀':>6}")
+    print(f"  {'-'*70}")
+
+    for r in good_results[:10]:
+        print(f"  {r['hp']:>3}  {r['heavy_dmg']:>3}  {r['heavy_hit']:>4.1f}  {r['guard_counter']:>3}  "
+              f"{r['guard_block']:>4.1f}  {r['cpg']:>6.3f}  {r['pi']:>6.3f}  {r['gds']:>6.3f}  "
+              f"{r['fun_gds']:>7.3f}  {r['fun_d0']:>6.3f}  {r['win_d0']:>6.3f}")
+
+    # Compare with baseline
+    baseline = next((r for r in results if r['hp'] == 5 and r['heavy_dmg'] == 2
+                     and r['heavy_hit'] == 0.5 and r['guard_counter'] == 1
+                     and r['guard_block'] == 0.5), None)
+
+    if baseline and good_results:
+        best = good_results[0]
+        print()
+        print(f"  BASELINE (standard combat): CPG={baseline['cpg']:.3f}  PI={baseline['pi']:.3f}  GDS={baseline['gds']:.3f}")
+        print(f"  BEST found:                 CPG={best['cpg']:.3f}  PI={best['pi']:.3f}  GDS={best['gds']:.3f}")
+        improvement = (baseline['cpg'] - best['cpg']) / baseline['cpg'] * 100
+        print(f"  CPG improvement: {improvement:.1f}%")
+        print()
+        print(f"  Best config: HP={best['hp']}, HeavyDmg={best['heavy_dmg']}, HeavyHit={best['heavy_hit']:.1f}, "
+              f"GuardCounter={best['guard_counter']}, GuardBlock={best['guard_block']:.1f}")
+
+    # Also find configs with highest PI (most agency)
+    high_pi = sorted(good_results, key=lambda r: -r['pi'])
+    if high_pi:
+        print()
+        print(f"  HIGHEST AGENCY:")
+        best_pi = high_pi[0]
+        print(f"  PI={best_pi['pi']:.3f}  CPG={best_pi['cpg']:.3f}  GDS={best_pi['gds']:.3f}")
+        print(f"  Config: HP={best_pi['hp']}, HeavyDmg={best_pi['heavy_dmg']}, HeavyHit={best_pi['heavy_hit']:.1f}, "
+              f"GuardCounter={best_pi['guard_counter']}, GuardBlock={best_pi['guard_block']:.1f}")
+
+    # Pareto front: best trade-off between low CPG and high PI
+    print()
+    print(f"  PARETO FRONT (CPG vs PI):")
+    # Score = PI - CPG (maximize PI, minimize CPG)
+    scored = sorted(good_results, key=lambda r: -(r['pi'] - r['cpg']))
+    for r in scored[:5]:
+        print(f"    Score={r['pi']-r['cpg']:.3f}  PI={r['pi']:.3f}  CPG={r['cpg']:.3f}  GDS={r['gds']:.3f}  "
+              f"HP={r['hp']} HD={r['heavy_dmg']} HH={r['heavy_hit']:.1f} GC={r['guard_counter']} GB={r['guard_block']:.1f}")
+
+
 if __name__ == "__main__":
-    experiment_1_agency_vs_no_agency()
-    experiment_2_policy_spectrum()
-    experiment_3_what_maximizes_fun()
-    experiment_4_agency_across_games()
-    experiment_5_composite_engagement()
-    experiment_6_policy_impact_deep()
+    import sys
+    if "--quick" in sys.argv:
+        # Quick mode: just run experiments 1-6
+        experiment_1_agency_vs_no_agency()
+        experiment_2_policy_spectrum()
+        experiment_3_what_maximizes_fun()
+        experiment_4_agency_across_games()
+        experiment_5_composite_engagement()
+        experiment_6_policy_impact_deep()
+    elif "--search" in sys.argv:
+        # Search mode: run the parametric search
+        experiment_7_cpg_minimization()
+    else:
+        experiment_1_agency_vs_no_agency()
+        experiment_2_policy_spectrum()
+        experiment_3_what_maximizes_fun()
+        experiment_4_agency_across_games()
+        experiment_5_composite_engagement()
+        experiment_6_policy_impact_deep()
+        experiment_7_cpg_minimization()

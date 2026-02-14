@@ -330,6 +330,68 @@ class TestGDSUnderPolicies:
             prev_gds = gds
 
 
+class TestParametricCombat:
+    """Tests for parametric combat game and CPG minimization."""
+
+    def test_parametric_game_creation(self):
+        from experiments.agency_model import make_parametric_combat
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        assert game.max_hp == 5
+        assert game.n_actions == 3
+
+    def test_parametric_transitions_valid(self):
+        from experiments.agency_model import make_parametric_combat
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        for a_idx in range(3):
+            trans = game.get_transitions_for_action((5, 5), a_idx)
+            total = sum(p for p, _ in trans)
+            assert abs(total - 1.0) < 1e-10
+
+    def test_optimized_game_low_cpg(self):
+        """The optimized game config should have CPG < 0.1 (vs baseline > 0.3)."""
+        from experiments.agency_model import make_parametric_combat
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        cpg, _, _ = compute_choice_paradox_gap(game, resolution=10)
+        assert cpg < 0.1  # At resolution=5 this is 0.033, at 10 it's ~0.067
+
+    def test_optimized_game_high_pi(self):
+        """The optimized game should have PI > 0.3 (high agency)."""
+        from experiments.agency_model import make_parametric_combat
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        pi, _ = compute_policy_impact(game)
+        assert pi > 0.3
+
+    def test_optimized_game_higher_gds_than_baseline(self):
+        """Optimized game should have higher GDS than baseline."""
+        from experiments.agency_model import make_parametric_combat
+        baseline = make_combat_game(5)
+        optimized = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                            guard_counter=2, guard_vs_heavy_block=0.7)
+        random_policy = lambda s: [1/3, 1/3, 1/3]
+        gds_baseline = compute_gds_for_policy(baseline, random_policy).game_design_score
+        gds_optimized = compute_gds_for_policy(optimized, random_policy).game_design_score
+        assert gds_optimized > gds_baseline
+
+    def test_baseline_high_cpg(self):
+        """Baseline game should have high CPG (> 0.3) for comparison."""
+        game = make_combat_game(5)
+        cpg, _, _ = compute_choice_paradox_gap(game, resolution=10)
+        assert cpg > 0.3
+
+    def test_optimized_fun_equals_winning(self):
+        """In optimized game, fun-optimal strategy should also be winning."""
+        from experiments.agency_model import make_parametric_combat
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        _, fun_opt, _ = compute_choice_paradox_gap(game, resolution=10)
+        # Fun-optimal should have D₀ > 0.5 (winning)
+        assert fun_opt[1] > 0.5
+
+
 class TestCrossGameComparison:
     """Integration tests comparing agency measures across game types."""
 
