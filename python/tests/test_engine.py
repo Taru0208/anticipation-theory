@@ -1119,6 +1119,131 @@ def test_gds_cross_game_superlinear():
         )
 
 
+# --- CoinDuel tests ---
+
+from toa.games.coin_duel import CoinDuel
+from toa.games.coin_duel_rage import CoinDuelRage
+
+
+def test_coin_duel_symmetric():
+    """CoinDuel initial state should be perfectly symmetric (d_global = 0.5)."""
+    result = analyze(
+        initial_state=CoinDuel.initial_state(),
+        is_terminal=CoinDuel.is_terminal,
+        get_transitions=CoinDuel.get_transitions,
+        compute_intrinsic_desire=CoinDuel.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    initial = result.state_nodes[(0, 0, 5, 5)]
+    assert abs(initial.d_global - 0.5) < 0.001, f"d_global = {initial.d_global}"
+
+
+def test_coin_duel_gds_reasonable():
+    """CoinDuel GDS should be in a reasonable range (0.35 to 0.50)."""
+    result = analyze(
+        initial_state=CoinDuel.initial_state(),
+        is_terminal=CoinDuel.is_terminal,
+        get_transitions=CoinDuel.get_transitions,
+        compute_intrinsic_desire=CoinDuel.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    assert 0.35 < result.game_design_score < 0.50, \
+        f"GDS = {result.game_design_score}"
+
+
+def test_coin_duel_has_depth():
+    """CoinDuel should have significant A₂+ contribution (>40%)."""
+    result = analyze(
+        initial_state=CoinDuel.initial_state(),
+        is_terminal=CoinDuel.is_terminal,
+        get_transitions=CoinDuel.get_transitions,
+        compute_intrinsic_desire=CoinDuel.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    a1 = result.gds_components[0]
+    a2_plus = result.game_design_score - a1
+    depth_ratio = a2_plus / result.game_design_score
+    assert depth_ratio > 0.40, f"Depth ratio = {depth_ratio:.2f}"
+
+
+def test_coin_duel_transitions_sum_to_one():
+    """All non-terminal states should have transitions summing to 1.0."""
+    cfg = CoinDuel.Config()
+    for s1 in range(3):
+        for s2 in range(3):
+            for b1 in range(1, 6):
+                for b2 in range(1, 6):
+                    state = (s1, s2, b1, b2)
+                    if CoinDuel.is_terminal(state):
+                        continue
+                    trans = CoinDuel.get_transitions(state, cfg)
+                    total = sum(p for p, _ in trans)
+                    assert abs(total - 1.0) < 0.001, \
+                        f"State {state}: prob sum = {total}"
+
+
+def test_coin_duel_no_self_loops():
+    """CoinDuel should have no self-loops (required for DAG analysis)."""
+    cfg = CoinDuel.Config()
+    for s1 in range(3):
+        for s2 in range(3):
+            for b1 in range(1, 6):
+                for b2 in range(1, 6):
+                    state = (s1, s2, b1, b2)
+                    if CoinDuel.is_terminal(state):
+                        continue
+                    trans = CoinDuel.get_transitions(state, cfg)
+                    for p, ns in trans:
+                        assert ns != state, \
+                            f"Self-loop at {state}"
+
+
+def test_coin_duel_flip_outcomes():
+    """Flip outcomes should sum to 1.0 for any coin count."""
+    for n in range(1, 6):
+        outcomes = CoinDuel._flip_outcomes(n)
+        total = sum(p for p, _ in outcomes)
+        assert abs(total - 1.0) < 0.0001, f"n={n}: sum={total}"
+
+
+def test_coin_duel_round_result_symmetric():
+    """Equal wagers should give symmetric win probabilities."""
+    for n in range(1, 4):
+        p_win1, p_draw, p_win2 = CoinDuel._round_result(n, n)
+        assert abs(p_win1 - p_win2) < 0.0001, \
+            f"n={n}: p_win1={p_win1}, p_win2={p_win2}"
+
+
+def test_coin_duel_more_coins_advantage():
+    """More coins should give higher win probability."""
+    p1_1v1, _, _ = CoinDuel._round_result(1, 1)
+    p1_2v1, _, _ = CoinDuel._round_result(2, 1)
+    p1_3v1, _, _ = CoinDuel._round_result(3, 1)
+    assert p1_2v1 > p1_1v1, "2 vs 1 should beat 1 vs 1"
+    assert p1_3v1 > p1_2v1, "3 vs 1 should beat 2 vs 1"
+
+
+def test_coin_duel_rage_lower_gds():
+    """Desperation bonus should NOT increase GDS (validated finding)."""
+    base = analyze(
+        initial_state=CoinDuel.initial_state(),
+        is_terminal=CoinDuel.is_terminal,
+        get_transitions=CoinDuel.get_transitions,
+        compute_intrinsic_desire=CoinDuel.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    rage = analyze(
+        initial_state=CoinDuelRage.initial_state(),
+        is_terminal=CoinDuelRage.is_terminal,
+        get_transitions=CoinDuelRage.get_transitions,
+        compute_intrinsic_desire=CoinDuelRage.compute_intrinsic_desire,
+        nest_level=10,
+    )
+    # The desperation mechanic reduces GDS — interesting ToA finding
+    assert rage.game_design_score < base.game_design_score, \
+        f"Rage GDS {rage.game_design_score:.4f} >= Base GDS {base.game_design_score:.4f}"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     passed = 0
