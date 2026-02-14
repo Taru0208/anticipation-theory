@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install dependencies
+        run: pip install pytest
+
       - name: Run tests
         working-directory: python
-        run: python tests/test_engine.py
+        run: python -m pytest tests/ -v --tb=short
