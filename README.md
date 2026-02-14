@@ -91,7 +91,7 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v      # Run all 65 tests
+python3 -m pytest tests/ -v      # Run all 161 tests
 python3 experiments/moba_model.py # Run MOBA analysis
 ```
 
@@ -109,6 +109,9 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | GoldGame\_Critical | `python/toa/games/goldgame_critical.py` | With steal mechanics |
 | LaneGame | `python/toa/games/lanegame.py` | MOBA laning model |
 | TwoTurnGame | `python/toa/games/two_turn_game.py` | Parameter optimization |
+| CoinDuel | `python/toa/games/coin_duel.py` | Resource management + coin flipping (GDS 0.404) |
+| DraftWars | `python/toa/games/draft_wars.py` | Sequential card draft + auto-battle (GDS 0.377, 62% depth) |
+| ChainReaction | `python/toa/games/chain_reaction.py` | Territory control with cascade mechanics |
 
 ### Extended Experiments
 
@@ -129,6 +132,10 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | **Entropy Preservation** | GDS → ∞ iff per-state conditional entropy is uniform. Verified across 4 game classes |
 | **Superlinear Mechanism** | A₁ = \|ΔP\|/2 exactly. Recursive amplification: each A_k captures variation of A_{k-1}, amplifying by ~T per level |
 | **Exact Formulas** | Σ(reach × A₂) = (T-1)/4 exactly, Δ(A₂) = 1/4 per depth. A₁ → 2/√π × √T. Power law: A_k ~ T^{α_k} with α accelerating |
+| **Gambling Mechanics** | 6 casino games modeled — gambling GDS 2-5× lower than games, house edge barely matters (&lt;1%), payout asymmetry is the real engagement killer |
+| **Investment/Trading** | 6 financial instruments — day trading GDS 0.877 (2× HpGame!), stop options +132%, agency +782%, options ≡ slots structurally |
+| **Comeback Paradox** | Artificial comeback mechanics (desperation bonus) *decrease* GDS by 6%. Natural uncertainty outperforms designed reversals |
+| **Game Concept Comparison** | CoinDuel (0.404, 46% depth), DraftWars (0.377, 62% depth), ChainReaction (0.252, abstract). Card variance is critical — balanced cards halve GDS |
 
 -----
 
