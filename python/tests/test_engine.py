@@ -1,6 +1,6 @@
 """Tests for the core analysis engine, verified against C++ reference implementation.
 
-65 tests covering:
+91 tests covering:
 - 8 reference game models (CoinToss, RPS, HpGame, HpGameRage, GoldGame, etc.)
 - Monte Carlo simulation verification
 - Player Choice Paradox (Nash vs random play)
@@ -11,6 +11,8 @@
 - Exact formulas (A₂ total weight = (T-1)/4, Δ(A₂) = 0.25)
 - CLT scaling (A₁ ~ 1/√T)
 - Superlinear growth mechanism (A₁ = |ΔP|/2, diagonal symmetry, amplification ratios)
+- Game concept models (CoinDuel, DraftWars, ChainReaction)
+- Multiplayer dynamics (FFABattle: symmetry, depth scaling, elimination phases)
 """
 
 import math
@@ -1369,6 +1371,178 @@ def test_chain_reaction_transitions_sum():
                 total = sum(p for p, _ in trans)
                 assert abs(total - 1.0) < 0.01, \
                     f"State {state}: prob sum = {total}"
+
+
+# =============================================================
+# FFABattle (Multiplayer Dynamics) tests
+# =============================================================
+
+def test_ffa_3p_symmetric():
+    """3-player FFA should give P1 exactly 1/3 win probability."""
+    from toa.games.ffa_battle import FFABattle
+    r = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=3),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    start = FFABattle.initial_state(num_players=3, hp=3)
+    d = r.state_nodes[start].d_global
+    assert abs(d - 1.0/3.0) < 0.01, f"Expected ~0.333, got {d}"
+
+
+def test_ffa_3p_gds_reasonable():
+    """3P FFA GDS should be positive and in expected range."""
+    from toa.games.ffa_battle import FFABattle
+    r = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=3),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    gds = r.game_design_score
+    assert 0.3 < gds < 0.6, f"GDS {gds} out of expected range"
+
+
+def test_ffa_3p_high_depth():
+    """3P FFA should have higher depth ratio than 2P equivalent."""
+    from toa.games.ffa_battle import FFABattle
+    r3 = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=3),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    r2 = analyze(
+        initial_state=HpGame.initial_state(),
+        is_terminal=HpGame.is_terminal,
+        get_transitions=HpGame.get_transitions,
+        compute_intrinsic_desire=HpGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    depth_3p = (r3.game_design_score - r3.gds_components[0]) / r3.game_design_score
+    depth_2p = (r2.game_design_score - r2.gds_components[0]) / r2.game_design_score
+    assert depth_3p > depth_2p, f"3P depth {depth_3p:.3f} should exceed 2P depth {depth_2p:.3f}"
+
+
+def test_ffa_4p_symmetric():
+    """4-player FFA should give P1 exactly 1/4 win probability."""
+    from toa.games.ffa_battle import FFABattle
+    r = analyze(
+        initial_state=FFABattle.initial_state(num_players=4, hp=2),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    start = FFABattle.initial_state(num_players=4, hp=2)
+    d = r.state_nodes[start].d_global
+    assert abs(d - 0.25) < 0.01, f"Expected ~0.25, got {d}"
+
+
+def test_ffa_engagement_efficiency_increases():
+    """GDS/P(win) should increase with more players."""
+    from toa.games.ffa_battle import FFABattle
+    r2 = analyze(
+        initial_state=HpGame.initial_state(),
+        is_terminal=HpGame.is_terminal,
+        get_transitions=HpGame.get_transitions,
+        compute_intrinsic_desire=HpGame.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    start_2p = HpGame.initial_state()
+    eff_2p = r2.game_design_score / r2.state_nodes[start_2p].d_global
+
+    r3 = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=3),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    start_3p = FFABattle.initial_state(num_players=3, hp=3)
+    eff_3p = r3.game_design_score / r3.state_nodes[start_3p].d_global
+    assert eff_3p > eff_2p, f"3P efficiency {eff_3p:.3f} should exceed 2P {eff_2p:.3f}"
+
+
+def test_ffa_transitions_sum_to_one():
+    """All non-terminal FFA states should have transitions summing to 1."""
+    from toa.games.ffa_battle import FFABattle
+    r = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=2),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=3,
+    )
+    for state in r.states:
+        if FFABattle.is_terminal(state):
+            continue
+        trans = FFABattle.get_transitions(state)
+        total = sum(p for p, _ in trans)
+        assert abs(total - 1.0) < 0.01, f"State {state}: prob sum = {total}"
+
+
+def test_ffa_elimination_phases():
+    """3-alive phase should have lower avg A₁ than 2-alive phase."""
+    from toa.games.ffa_battle import FFABattle
+    r = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=3),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    a1_3alive = []
+    a1_2alive = []
+    for s in r.states:
+        alive = sum(1 for h in s if h > 0)
+        if alive == 3:
+            a1_3alive.append(r.state_nodes[s].a[0])
+        elif alive == 2:
+            a1_2alive.append(r.state_nodes[s].a[0])
+    avg_3 = sum(a1_3alive) / len(a1_3alive) if a1_3alive else 0
+    avg_2 = sum(a1_2alive) / len(a1_2alive) if a1_2alive else 0
+    assert avg_3 < avg_2, f"3-alive avg A₁ {avg_3:.4f} should be < 2-alive {avg_2:.4f}"
+
+
+def test_ffa_depth_increases_with_n():
+    """Depth ratio should increase from N=2 to N=3 to N=4."""
+    from toa.games.ffa_battle import FFABattle
+
+    def depth_ratio(r):
+        return (r.game_design_score - r.gds_components[0]) / r.game_design_score if r.game_design_score > 0 else 0
+
+    r2 = analyze(
+        initial_state=(2, 2),
+        is_terminal=lambda s: s[0] <= 0 or s[1] <= 0,
+        get_transitions=lambda s, c=None: [] if s[0] <= 0 or s[1] <= 0 else [
+            (1/3, (s[0], s[1]-1)), (1/3, (s[0]-1, s[1]-1)), (1/3, (s[0]-1, s[1]))],
+        compute_intrinsic_desire=lambda s: 1.0 if s[0] > 0 and s[1] <= 0 else 0.0,
+        nest_level=5,
+    )
+    r3 = analyze(
+        initial_state=FFABattle.initial_state(num_players=3, hp=2),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    r4 = analyze(
+        initial_state=FFABattle.initial_state(num_players=4, hp=2),
+        is_terminal=FFABattle.is_terminal,
+        get_transitions=FFABattle.get_transitions,
+        compute_intrinsic_desire=FFABattle.compute_intrinsic_desire,
+        nest_level=5,
+    )
+    d2 = depth_ratio(r2)
+    d3 = depth_ratio(r3)
+    d4 = depth_ratio(r4)
+    assert d3 > d2, f"3P depth {d3:.3f} should exceed 2P {d2:.3f}"
+    assert d4 > d3, f"4P depth {d4:.3f} should exceed 3P {d3:.3f}"
 
 
 if __name__ == "__main__":
