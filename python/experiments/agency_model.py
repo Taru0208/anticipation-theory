@@ -1655,6 +1655,15 @@ def experiment_9_cpg_generalization():
     print("  This holds for both combat (damage) and resource allocation (wager returns).")
     print("  In sequential information games, the principle is harder to apply because")
     print("  'risky' and 'safe' depend on visible game state, not fixed action properties.")
+    print()
+    print("  DEEPER INSIGHT: Intrinsic vs Extrinsic Variance")
+    print("  - Combat: variance is INTRINSIC (50% hit chance = within the action)")
+    print("  - CoinDuel: variance is INTRINSIC (coin flips = within the wager)")
+    print("  - DraftWars: variance is EXTRINSIC (opponent's pick = outside the action)")
+    print("  CPG elimination works for intrinsic-variance games where you can make")
+    print("  the high-variance action also the high-EV action. For extrinsic-variance")
+    print("  games, the 'risk' of an action depends on what the opponent does, so")
+    print("  no fixed action property can guarantee CPG = 0.")
 
 
 if __name__ == "__main__":
