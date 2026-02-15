@@ -2,248 +2,118 @@
 
 [![Tests](https://github.com/Taru0208/anticipation-theory/actions/workflows/test.yml/badge.svg)](https://github.com/Taru0208/anticipation-theory/actions/workflows/test.yml)
 
-> **This is an independent research fork** of the [Theory of Anticipation (ToA)](https://github.com/akalouis/anticipation-theory) by Jeeheon (Lloyd) Oh ([Farseer Co., Ltd.](https://github.com/akalouis)).
->
-> **Original work:**
-> - Repository: [akalouis/anticipation-theory](https://github.com/akalouis/anticipation-theory) (MIT License)
-> - Paper: [Formulation of Engagement as Local Anticipation](https://doi.org/10.5281/zenodo.15826917)
-> - Article: [Can You Mathematically Measure Fun?](https://medium.com/@aka.louis/can-you-mathematically-measure-fun-you-could-not-until-now-01168128d428)
->
-> This repository extends the original with a Python port, additional experiments, and exploration of the theory's open conjectures. All original code and theory belong to the original author.
+> **Independent research fork** of [Theory of Anticipation (ToA)](https://github.com/akalouis/anticipation-theory) by Jeeheon (Lloyd) Oh.
+> All original code and theory belong to the original author (MIT License).
 
------
+## What is This?
 
-## What is the Theory of Anticipation?
+Many games have a hidden problem: **the boring, safe strategy wins**, and **the exciting, risky strategy loses**. Players must choose between having fun and winning.
 
-**Theory of Anticipation (ToA)** is a mathematical framework for quantifying engagement, or "fun." Created primarily as a game design tool, it offers an objective and computable measure of a player's engagement.
+This research uses [Anticipation Theory](https://github.com/akalouis/anticipation-theory) — a mathematical framework for measuring "fun" — to detect and fix this problem.
 
------
+**Key result:** By adjusting a game's numbers (damage, hit rates, costs), we can make the exciting play *also* the winning play, eliminating the trade-off entirely.
 
-## Overview
+### Try It
 
-The Theory of Anticipation provides a formal language to describe and optimize for "fun." It aims to move aspects of game design from pure intuition to a domain that can be analytically explored and computationally optimized. By modeling a game as a system of states and probabilities, it calculates the engagement a player feels moment-to-moment.
+**[▶ Play the Design Lab](https://taru0208.github.io/toa-research/design-lab/)** — same combat game, two sets of numbers. Feel the difference yourself.
 
-### Inputs
+**[How It Works](https://taru0208.github.io/toa-research/about/)** — plain-language explanation of the theory.
 
-1.  **Game Model**: The game is represented as a probabilistic graph:
+---
 
-      * **States ($s$)**: All possible, discrete game situations.
-      * **Transitions ($P(s \\to s')$**: The probability of moving from one state to another.
+## Key Finding: Eliminating the Choice Paradox
 
-2.  **Intrinsic Desire ($D\_{local}$)**: The root "seed" desire from which all derived anticipation values are generated. To enable objective analysis, you simply define the ultimate goal (e.g., set the "win condition" state to `1` and all other states to `0`). All other desire and anticipation values for the entire game are then computed automatically from this input.
-
-### Outputs
-
-  * **Global Desire ($D\_{global}$)**: The computed desirability of a given state.
-  * **Anticipation ($A\_1$)**: The immediate, quantifiable "fun" of any given state.
-  * **Nested Anticipation ($A\_2, A\_3, ...$)**: Higher-order components of anticipation for any given state, capturing deeper strategic fun.
-  * **Game Design Score**: A single, objective score for the entire game design.
-
-### Core Foundation
-
-At its heart, the theory measures the uncertainty of meaningfulness of future branches. The Local Anticipation ($A\_1$) for a given state ($s$) is calculated as:
-
-$$A_1(s) = \sqrt{\sum_{s'} P(s \to s') \cdot (D(s') - \mu)^2}$$
-
-This formula is the core of the theory, from which all other metrics are derived through algorithmic expansion. Detailed implementation specifics, such as the concept of "Perspective Desire" or efficient dynamic programming practices, are fully documented within the source code.
-
------
-
-## Empirical Proof: Playable Demos 🎮
-
-Below are two browser-playable versions of a simple game. The second version has been optimized by a computer algorithm, guided only by ToA's formulas, to maximize its "Game Design Score."
-
-  * **Play the Baseline Game: [HpGame](https://akalouis.github.io/anticipation-theory/Html/hpgame.html)**
-  * **Play the Optimized Game: [HpGame\_Rage\_Optimized](https://akalouis.github.io/anticipation-theory/Html/hpgame_rage_optimized.html)**
-
-You will likely find the second game more engaging. This is a powerful and intuitive empirical proof that the Theory of Anticipation works.
-
-### Extended Demos (this fork)
-
-  * **[Design Lab](https://taru0208.github.io/toa-research/design-lab/)** — the key demo. Same game, two parameter sets. In "Before," defense wins. In "After," offense wins. Feel how number changes eliminate the fun-vs-winning trade-off.
-  * **[Interactive Engine](https://taru0208.github.io/toa-research/demo/)** — real-time A₁-A₅ visualization with side-by-side game comparison
-
------
-
-## Included Experiments
-
-The following experiments are implemented as demonstrations and test cases for the theory.
-
-  * `rock_paper_scissors`
-  * `cointoss`
-  * `hpgame` (The baseline playable demo)
-  * `hpgame_interactive`
-  * `hpgame_rage`
-  * `hpgame_rage_optimize_critchance`
-  * `hpgame_rage_compare_mechanics`
-  * `hpgame_rage_optimized` (The optimized playable demo)
-
-**Note**: Please refer to the source code for the most current and complete list of experiments.
-
------
-
-## Research Blog
-
-Detailed writeups of each experiment and discovery: **[taru0208.github.io/toa-research](https://taru0208.github.io/toa-research/)**
-
------
-
-## Python Port & Extended Research
-
-This fork includes a complete Python port of the C++ analysis engine, enabling rapid experimentation on any platform.
-
-### Getting Started (Python)
-
-```bash
-cd python
-python3 -m pytest tests/ -v           # Run all 276 tests
-python3 experiments/agency_model.py --generalize  # Run CPG generalization
-```
-
-### Ported Components
-
-| Component | File | Description |
-|-----------|------|-------------|
-| Core Engine | `python/toa/engine.py` | Full `analyze()` function — DP, nested anticipation, GDS |
-| Monte Carlo | `python/toa/simulate.py` | Simulation-based GDS estimation |
-| CoinToss | `python/toa/games/coin_toss.py` | A₁ = 0.500 (theoretical maximum) |
-| RPS | `python/toa/games/rps.py` | A₁ = 0.471 |
-| HpGame | `python/toa/games/hpgame.py` | GDS = 0.430 |
-| HpGame\_Rage | `python/toa/games/hpgame_rage.py` | GDS = 0.544 (+26.5%) |
-| GoldGame | `python/toa/games/goldgame.py` | Economic competition |
-| GoldGame\_Critical | `python/toa/games/goldgame_critical.py` | With steal mechanics |
-| LaneGame | `python/toa/games/lanegame.py` | MOBA laning model |
-| TwoTurnGame | `python/toa/games/two_turn_game.py` | Parameter optimization |
-| CoinDuel | `python/toa/games/coin_duel.py` | Resource management + coin flipping (GDS 0.404) |
-| DraftWars | `python/toa/games/draft_wars.py` | Sequential card draft + auto-battle (GDS 0.377, 62% depth) |
-| ChainReaction | `python/toa/games/chain_reaction.py` | Territory control with cascade mechanics |
-| FFABattle | `python/toa/games/ffa_battle.py` | N-player free-for-all (GDS 0.429 at N=3, 67% depth) |
-| AsymmetricCombat | `python/toa/games/asymmetric_combat.py` | Ultra-high GDS via one-sided hits (GDS 34.49 at HP=20) |
-| **Agency Model** | `python/experiments/agency_model.py` | **Combat with player actions — Policy Impact, CPG, parametric search** |
-
-### Extended Experiments
-
-| Experiment | Key Finding |
-|------------|-------------|
-| **Genetic Algorithm Optimizer** | Discovered a symmetric game with GDS = 0.979 (77.8% better than hand-designed HpGame\_Rage) |
-| **GA + Accumulation Mechanics** | GDS = 1.429 — resource accumulation creates the highest-scoring game found |
-| **Optimal Game Analysis** | Optimal kill probability ≈ 50%; "moderate lethality" maximizes engagement |
-| **Unbound Conjecture v2** | 6 game classes all show linear GDS growth with depth; Best-of-N exceeds GDS 1.0 at depth 17 |
-| **Player Choice Paradox** | Nash equilibrium play reduces GDS by 5–7% — optimal strategy is less fun |
-| **MOBA Lane Model** | GDS = 0.540 with highest strategic depth ratio (65.9%) of all tested games |
-| **Perspective Desire Proof** | Mathematically proved that naive and perspective formulations are equivalent |
-| **Narrative Structure** | Rage mechanics amplify narrative arc variance 10× |
-| **GameFlow Bridge** | Maps GameFlow (2005) qualitative elements to computable ToA metrics |
-| **Education Model** | ToA applied to quizzes — Goldilocks zone (P≈50-80%), binary > graduated (+42-65%), longer quizzes are *less* engaging (Anti-Unbound) |
-| **Superlinear Growth** | GDS grows as T^1.35, not linear. Each A\_k component grows as T^(k−1). Exact formula: Σ(reach×A₂) = (T−1)/4 |
-| **Convergence Test** | Unbound iff independent trials; Anti-Unbound iff state accumulation converges probability |
-| **Entropy Preservation** | GDS → ∞ iff per-state conditional entropy is uniform. Verified across 4 game classes |
-| **Superlinear Mechanism** | A₁ = \|ΔP\|/2 exactly. Recursive amplification: each A_k captures variation of A_{k-1}, amplifying by ~T per level |
-| **Exact Formulas** | Σ(reach × A₂) = (T-1)/4 exactly, Δ(A₂) = 1/4 per depth. A₁ → 2/√π × √T. Power law: A_k ~ T^{α_k} with α accelerating |
-| **Gambling Mechanics** | 6 casino games modeled — gambling GDS 2-5× lower than games, house edge barely matters (&lt;1%), payout asymmetry is the real engagement killer |
-| **Investment/Trading** | 6 financial instruments — day trading GDS 0.877 (2× HpGame!), stop options +132%, agency +782%, options ≡ slots structurally |
-| **Comeback Paradox** | Artificial comeback mechanics (desperation bonus) *decrease* GDS by 6%. Natural uncertainty outperforms designed reversals |
-| **Game Concept Comparison** | CoinDuel (0.404, 46% depth), DraftWars (0.377, 62% depth), ChainReaction (0.252, abstract). Card variance is critical — balanced cards halve GDS |
-| **Multiplayer Dynamics** | FFA battles: GDS/P(win) increases with N (1.02→1.64), depth ratio surges (45%→70%), focus fire halves GDS (-51.5%), elimination phases boost A₂ |
-| **Ultra-High GDS** | Asymmetric combat (one player hit/turn): GDS scales superlinearly with HP — 34.49 at HP=20 (63× HpGame\_Rage). But high GDS ≠ fun without agency |
-| **Agency Integration (Phase 1)** | Three measures tested: Decision Tension (flawed), Entropy-Corrected (partial), **Policy Impact** (correct ranking). PI = max(GDS) - min(GDS) across strategies |
-| **Choice Paradox Gap (CPG)** | New game quality metric: \|D₀(fun-optimal) - D₀(win-optimal)\|. In standard combat, CPG = 0.346 — players must choose between fun and winning |
-| **CPG Minimization** | Parametric search found game where fun = winning: CPG 0.346 → 0.000 (100% elimination). Config: HD=3, HH=70%, GC=2, GB=70%. PI increases 2.5× simultaneously |
-| **CPG Generalization** | Tested across 3 game structures — Combat (CPG→0), CoinDuel (CPG→0 via MW=4, Ref=2), DraftWars (CPG=0.249, unresolved). Universal: risky EV > safe EV → CPG → 0 |
-| **Perceptual Weighting (Phase 2)** | wGDS(α) = Σ α^k × A_k. Growth rate classification: SNOWBALL/DECAYING/SHALLOW. Most games DECAYING (A₁ dominant). ENL 3-5 covers >99% of GDS |
-| **Composite Fun Score (Phase 3)** | CFS = wGDS × (1 + PI/GDS) × (1 - CPG). CPG is dominant discriminator (r=0.921). CFS-optimal = CPG-minimal. Baseline→Optimized: +135% |
-
------
-
-## Key Result: Eliminating the Choice Paradox
-
-The most significant finding of this extended research is the **Choice Paradox Gap (CPG)** — a formal measure of how far "playing for fun" diverges from "playing to win."
-
-In most games with player agency, the fun-maximizing strategy (high variance, exciting plays) is *not* the winning strategy (defensive, safe plays). This creates a design flaw: players are punished for playing the exciting way.
-
-**We found that this paradox can be completely eliminated through parameter optimization:**
+The **Choice Paradox Gap (CPG)** measures how much "playing for fun" diverges from "playing to win."
 
 | Metric | Standard Game | Optimized Game | Change |
 |--------|-------------|----------------|--------|
-| CPG | 0.346 | 0.000 | 100% elimination |
+| CPG | 0.346 | 0.000 | **100% eliminated** |
 | Policy Impact | 0.147 | 0.366 | 2.5× more agency |
 | GDS (fun-optimal) | 0.534 | 0.591 | +10.7% |
-| Fun ≈ Winning? | NO | **YES** | Paradox eliminated |
+| Fun = Winning? | No | **Yes** | Paradox eliminated |
 
-**The universal design principle:** make the *risky* action have *higher expected value* than the safe action. When aggressive play is also correct play, fun and winning align.
+**Design principle:** make risky actions have higher expected value than safe actions. Verified across combat, resource, and economic game structures (276 tests).
 
-This was verified across multiple game structures (combat, resource allocation) with 276 tests. See `experiments/agency_model.py` for the full analysis.
+---
 
-**Try it yourself:** [Design Lab — Before & After](https://taru0208.github.io/toa-research/design-lab/) — play the same game with standard vs. optimized parameters and feel the difference.
+## Quick Start (Python)
 
-### Perceptual Weighting (Phase 2)
-
-Not all anticipation levels are equally perceptible. Weighted GDS: `wGDS(α) = Σ α^k × A_k` captures this. Most games are **DECAYING** (A₁ dominates). Effective nest level of 3-5 covers >99% of practical GDS. See `experiments/perceptual_weighting.py`.
-
-### Composite Fun Score (Phase 3)
-
-The Composite Fun Score unifies all three research phases into a single optimization target:
-
-```
-CFS = wGDS(α) × (1 + PI/GDS) × (1 - CPG)
+```bash
+cd python
+python3 -m pytest tests/ -v              # Run all 276 tests
+python3 experiments/agency_model.py --generalize  # CPG analysis
 ```
 
-| Factor | What it measures | Contribution |
-|--------|-----------------|-------------|
-| wGDS(α) | Perceptually weighted tension | Base engagement |
-| PI/GDS | Agency fraction — how much player controls | Amplifier |
-| 1 - CPG | Fun-winning alignment | Penalty (most important) |
+---
 
-**Key finding:** CPG is the dominant discriminator (r=0.921 correlation with CFS). A game where fun=winning scores higher than any game with better tension but misaligned incentives. See `experiments/composite_fun_score.py`.
+## What's In This Fork
 
------
+### Python Port
+Complete rewrite of the C++ engine in Python, covering all 8 original game models plus 8 new ones.
 
-## Examples
+### Research Phases
 
-The framework allows you to define a complete game model with minimal code. The engine will then compute the anticipation and evaluate your design. Below is the full example required to implement and analyze a new experiment.
+| Phase | Topic | Key Finding |
+|-------|-------|-------------|
+| **0** | Quality review | Fixed Rage Arena guard exploit, verified all models |
+| **1** | Agency integration | Policy Impact (PI) as correct agency metric; CPG elimination via parameter optimization |
+| **2** | Perceptual weighting | wGDS(α) — most games are DECAYING (A₁ dominant); ENL 3-5 sufficient |
+| **3** | Composite Fun Score | CFS = wGDS × (1 + PI/GDS) × (1 - CPG); CPG is dominant factor (r=0.921) |
 
-```cpp
-module;
-export module hpgame_v1;
-import "pch.h";
-import game;
+### All Game Models
 
-export namespace hpgame
-{
-	struct State
-	{
-		unsigned char hp1; // player1 hp
-		unsigned char hp2; // player2 hp
-		auto operator <=> (const State&) const = default;
-	};
-	struct Transition { float probability; State to; };
+<details>
+<summary>16 game models implemented</summary>
 
-	struct Game
-	{
-		typedef game::EmptyConfig Config;
-		typedef State State;
+| Model | File | GDS | Notes |
+|-------|------|-----|-------|
+| CoinToss | `coin_toss.py` | 0.500 | Theoretical A₁ maximum |
+| RPS | `rps.py` | 0.471 | |
+| HpGame | `hpgame.py` | 0.430 | Baseline combat |
+| HpGame_Rage | `hpgame_rage.py` | 0.544 | +26.5% from rage mechanics |
+| GoldGame | `goldgame.py` | — | Economic competition |
+| GoldGame_Critical | `goldgame_critical.py` | — | With steal mechanics |
+| LaneGame | `lanegame.py` | 0.540 | MOBA model, 65.9% depth |
+| TwoTurnGame | `two_turn_game.py` | — | Parameter optimization |
+| CoinDuel | `coin_duel.py` | 0.404 | Resource + coin flipping |
+| DraftWars | `draft_wars.py` | 0.377 | Sequential draft, 62% depth |
+| ChainReaction | `chain_reaction.py` | 0.252 | Territory control |
+| FFABattle | `ffa_battle.py` | 0.429 | N-player FFA |
+| AsymmetricCombat | `asymmetric_combat.py` | 34.49 | Ultra-high GDS (HP=20) |
+| Education | `education_model.py` | — | Quiz engagement |
+| Gambling | `gambling_model.py` | — | 6 casino games |
+| Trading | `trading_model.py` | — | 6 financial instruments |
 
-		static State initial_state() { return State{ 5, 5 }; }
-		static bool is_terminal_state(const State& s) { return s.hp1 <= 0 || s.hp2 <= 0; }
-		static std::vector<Transition> get_transitions(Config, const State& state)
-		{
-			std::vector<Transition> result;
-			if (is_terminal_state(state)) return result;
+</details>
 
-			// win, draw, loss version
-			result.push_back({ 1.0f / 3.0f, State{ state.hp1, (unsigned char)(state.hp2 - 1) }, });
-			result.push_back({ 1.0f / 3.0f, State{ (unsigned char)(state.hp1 - 1), (unsigned char)(state.hp2 - 1) }, });
-			result.push_back({ 1.0f / 3.0f, State{ (unsigned char)(state.hp1 - 1), state.hp2 }, });
+<details>
+<summary>Extended experiments (full table)</summary>
 
-			game::sanitize_transitions(result);
-			return result;
-		}
-		static float compute_intrinsic_desire(const State& state)
-		{
-			// Player 1 wins if their HP is > 0 and Player 2's HP is 0
-			return state.hp1 != 0 && state.hp2 == 0 ? 1.0f : 0.0f;
-		}
-		static std::string tostr(const State& s) { return "HP1:" + std::to_string(s.hp1) + " HP2:" + std::to_string(s.hp2); }
-	};
-}
-```
+| Experiment | Key Finding |
+|------------|-------------|
+| Genetic Algorithm | Symmetric game with GDS 0.979 (+77.8% over hand-designed) |
+| GA + Accumulation | GDS 1.429 — highest-scoring game found |
+| Optimal Game Analysis | Kill probability ≈ 50% maximizes engagement |
+| Unbound Conjecture v2 | Linear GDS growth with depth across 6 game classes |
+| Player Choice Paradox | Nash play reduces GDS by 5-7% |
+| Perspective Desire Proof | Naive and perspective formulations are equivalent |
+| Superlinear Growth | GDS grows as T^1.35; each A_k ~ T^(k-1) |
+| Convergence Test | Unbound iff independent trials |
+| Comeback Paradox | Artificial comebacks *decrease* GDS by 6% |
+| Multiplayer Dynamics | FFA: GDS/P(win) increases with N; focus fire halves GDS |
+| Education Model | Goldilocks zone P≈50-80%; longer quizzes less engaging |
+| Gambling Mechanics | Gambling GDS 2-5× lower than games; payout asymmetry is the real killer |
+| Trading/Investment | Day trading GDS 0.877 (2× HpGame); stop options +132% |
+
+</details>
+
+---
+
+## Research Blog
+
+Writeups and interactive demos: **[taru0208.github.io/toa-research](https://taru0208.github.io/toa-research/)**
+
+## Credits
+
+- **Original theory**: [Jeeheon (Lloyd) Oh](https://github.com/akalouis) — [Paper](https://doi.org/10.5281/zenodo.15826917) · [Article](https://medium.com/@aka.louis/can-you-mathematically-measure-fun-you-could-not-until-now-01168128d428)
+- **Original demos**: [HpGame](https://akalouis.github.io/anticipation-theory/Html/hpgame.html) · [Optimized](https://akalouis.github.io/anticipation-theory/Html/hpgame_rage_optimized.html)
