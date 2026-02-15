@@ -58,6 +58,14 @@ Below are two browser-playable versions of a simple game. The second version has
 
 You will likely find the second game more engaging. This is a powerful and intuitive empirical proof that the Theory of Anticipation works.
 
+### Extended Demos (this fork)
+
+  * **[Interactive Demo](https://taru0208.github.io/toa-research/demo/)** — canvas rendering, particles, sound, real-time A₁-A₅ display
+  * **[Rage Arena](https://taru0208.github.io/toa-research/game/)** — turn-based combat with Strike/Heavy/Rage/Guard
+  * **[Coin Duel](https://taru0208.github.io/toa-research/coin-duel/)** — wager coins, flip them, outsmart the opponent (GDS 0.404)
+  * **[Draft Wars](https://taru0208.github.io/toa-research/draft-wars/)** — sequential card draft + auto-battle (62% depth ratio)
+  * **[Paradox-Free Combat](https://taru0208.github.io/toa-research/paradox-free/)** — CPG = 0: the fun strategy IS the winning strategy
+
 -----
 
 ## Included Experiments
@@ -91,8 +99,8 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v      # Run all 91 tests
-python3 experiments/moba_model.py # Run MOBA analysis
+python3 -m pytest tests/ -v           # Run all 228 tests
+python3 experiments/agency_model.py --generalize  # Run CPG generalization
 ```
 
 ### Ported Components
@@ -113,6 +121,8 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | DraftWars | `python/toa/games/draft_wars.py` | Sequential card draft + auto-battle (GDS 0.377, 62% depth) |
 | ChainReaction | `python/toa/games/chain_reaction.py` | Territory control with cascade mechanics |
 | FFABattle | `python/toa/games/ffa_battle.py` | N-player free-for-all (GDS 0.429 at N=3, 67% depth) |
+| AsymmetricCombat | `python/toa/games/asymmetric_combat.py` | Ultra-high GDS via one-sided hits (GDS 34.49 at HP=20) |
+| **Agency Model** | `python/experiments/agency_model.py` | **Combat with player actions — Policy Impact, CPG, parametric search** |
 
 ### Extended Experiments
 
@@ -138,6 +148,34 @@ python3 experiments/moba_model.py # Run MOBA analysis
 | **Comeback Paradox** | Artificial comeback mechanics (desperation bonus) *decrease* GDS by 6%. Natural uncertainty outperforms designed reversals |
 | **Game Concept Comparison** | CoinDuel (0.404, 46% depth), DraftWars (0.377, 62% depth), ChainReaction (0.252, abstract). Card variance is critical — balanced cards halve GDS |
 | **Multiplayer Dynamics** | FFA battles: GDS/P(win) increases with N (1.02→1.64), depth ratio surges (45%→70%), focus fire halves GDS (-51.5%), elimination phases boost A₂ |
+| **Ultra-High GDS** | Asymmetric combat (one player hit/turn): GDS scales superlinearly with HP — 34.49 at HP=20 (63× HpGame\_Rage). But high GDS ≠ fun without agency |
+| **Agency Integration (Phase 1)** | Three measures tested: Decision Tension (flawed), Entropy-Corrected (partial), **Policy Impact** (correct ranking). PI = max(GDS) - min(GDS) across strategies |
+| **Choice Paradox Gap (CPG)** | New game quality metric: \|D₀(fun-optimal) - D₀(win-optimal)\|. In standard combat, CPG = 0.346 — players must choose between fun and winning |
+| **CPG Minimization** | Parametric search found game where fun = winning: CPG 0.346 → 0.000 (100% elimination). Config: HD=3, HH=70%, GC=2, GB=70%. PI increases 2.5× simultaneously |
+| **CPG Generalization** | Tested across 3 game structures — Combat (CPG→0), CoinDuel (CPG→0 via MW=4, Ref=2), DraftWars (CPG=0.249, unresolved). Universal: risky EV > safe EV → CPG → 0 |
+
+-----
+
+## Key Result: Eliminating the Choice Paradox
+
+The most significant finding of this extended research is the **Choice Paradox Gap (CPG)** — a formal measure of how far "playing for fun" diverges from "playing to win."
+
+In most games with player agency, the fun-maximizing strategy (high variance, exciting plays) is *not* the winning strategy (defensive, safe plays). This creates a design flaw: players are punished for playing the exciting way.
+
+**We found that this paradox can be completely eliminated through parameter optimization:**
+
+| Metric | Standard Game | Optimized Game | Change |
+|--------|-------------|----------------|--------|
+| CPG | 0.346 | 0.000 | 100% elimination |
+| Policy Impact | 0.147 | 0.366 | 2.5× more agency |
+| GDS (fun-optimal) | 0.534 | 0.591 | +10.7% |
+| Fun ≈ Winning? | NO | **YES** | Paradox eliminated |
+
+**The universal design principle:** make the *risky* action have *higher expected value* than the safe action. When aggressive play is also correct play, fun and winning align.
+
+This was verified across multiple game structures (combat, resource allocation) with 228 tests. See `experiments/agency_model.py` for the full analysis.
+
+**Try it yourself:** [Paradox-Free Combat Demo](https://taru0208.github.io/toa-research/paradox-free/)
 
 -----
 
