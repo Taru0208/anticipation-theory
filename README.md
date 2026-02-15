@@ -99,7 +99,7 @@ This fork includes a complete Python port of the C++ analysis engine, enabling r
 
 ```bash
 cd python
-python3 -m pytest tests/ -v           # Run all 228 tests
+python3 -m pytest tests/ -v           # Run all 276 tests
 python3 experiments/agency_model.py --generalize  # Run CPG generalization
 ```
 
@@ -153,6 +153,8 @@ python3 experiments/agency_model.py --generalize  # Run CPG generalization
 | **Choice Paradox Gap (CPG)** | New game quality metric: \|D₀(fun-optimal) - D₀(win-optimal)\|. In standard combat, CPG = 0.346 — players must choose between fun and winning |
 | **CPG Minimization** | Parametric search found game where fun = winning: CPG 0.346 → 0.000 (100% elimination). Config: HD=3, HH=70%, GC=2, GB=70%. PI increases 2.5× simultaneously |
 | **CPG Generalization** | Tested across 3 game structures — Combat (CPG→0), CoinDuel (CPG→0 via MW=4, Ref=2), DraftWars (CPG=0.249, unresolved). Universal: risky EV > safe EV → CPG → 0 |
+| **Perceptual Weighting (Phase 2)** | wGDS(α) = Σ α^k × A_k. Growth rate classification: SNOWBALL/DECAYING/SHALLOW. Most games DECAYING (A₁ dominant). ENL 3-5 covers >99% of GDS |
+| **Composite Fun Score (Phase 3)** | CFS = wGDS × (1 + PI/GDS) × (1 - CPG). CPG is dominant discriminator (r=0.921). CFS-optimal = CPG-minimal. Baseline→Optimized: +135% |
 
 -----
 
@@ -173,9 +175,29 @@ In most games with player agency, the fun-maximizing strategy (high variance, ex
 
 **The universal design principle:** make the *risky* action have *higher expected value* than the safe action. When aggressive play is also correct play, fun and winning align.
 
-This was verified across multiple game structures (combat, resource allocation) with 228 tests. See `experiments/agency_model.py` for the full analysis.
+This was verified across multiple game structures (combat, resource allocation) with 276 tests. See `experiments/agency_model.py` for the full analysis.
 
-**Try it yourself:** [Paradox-Free Combat Demo](https://taru0208.github.io/toa-research/paradox-free/)
+**Try it yourself:** [Design Lab — Before & After](https://taru0208.github.io/toa-research/design-lab/) — play the same game with standard vs. optimized parameters and feel the difference.
+
+### Perceptual Weighting (Phase 2)
+
+Not all anticipation levels are equally perceptible. Weighted GDS: `wGDS(α) = Σ α^k × A_k` captures this. Most games are **DECAYING** (A₁ dominates). Effective nest level of 3-5 covers >99% of practical GDS. See `experiments/perceptual_weighting.py`.
+
+### Composite Fun Score (Phase 3)
+
+The Composite Fun Score unifies all three research phases into a single optimization target:
+
+```
+CFS = wGDS(α) × (1 + PI/GDS) × (1 - CPG)
+```
+
+| Factor | What it measures | Contribution |
+|--------|-----------------|-------------|
+| wGDS(α) | Perceptually weighted tension | Base engagement |
+| PI/GDS | Agency fraction — how much player controls | Amplifier |
+| 1 - CPG | Fun-winning alignment | Penalty (most important) |
+
+**Key finding:** CPG is the dominant discriminator (r=0.921 correlation with CFS). A game where fun=winning scores higher than any game with better tension but misaligned incentives. See `experiments/composite_fun_score.py`.
 
 -----
 
