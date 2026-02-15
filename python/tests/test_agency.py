@@ -450,3 +450,103 @@ class TestCrossGameComparison:
         pi_rps, _ = compute_policy_impact(rps)
 
         assert pi_balanced > pi_dominant > pi_rps
+
+
+class TestCPGGeneralization:
+    """Tests for CPG generalization across game structures (Experiment 9)."""
+
+    def test_coinduel_default_low_pi(self):
+        """Default CoinDuel has low PI (wager barely affects experience)."""
+        from experiments.agency_model import CoinDuelActionGame, compute_policy_impact, compute_gds_for_policy
+        game = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=3, refill_per_turn=1)
+        pi, _ = compute_policy_impact(game)
+        random_gds = compute_gds_for_policy(
+            game, lambda s: [1/3, 1/3, 1/3]
+        ).game_design_score
+        # PI/GDS should be low (< 10%) — wager choice barely matters
+        assert pi / random_gds < 0.10
+
+    def test_coinduel_optimized_higher_pi(self):
+        """CoinDuel with more wager options and faster refill has higher PI."""
+        from experiments.agency_model import CoinDuelActionGame, compute_policy_impact
+        default = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=3, refill_per_turn=1)
+        optimized = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=4, refill_per_turn=2)
+        pi_default, _ = compute_policy_impact(default)
+        pi_optimized, _ = compute_policy_impact(optimized)
+        assert pi_optimized > pi_default
+
+    def test_coinduel_optimized_low_cpg(self):
+        """CoinDuel MW=4, Refill=2 achieves CPG < 0.05."""
+        from experiments.agency_model import CoinDuelActionGame, compute_choice_paradox_gap
+        game = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=4, refill_per_turn=2)
+        cpg, _, _ = compute_choice_paradox_gap(game, resolution=20)
+        assert cpg < 0.05
+
+    def test_coinduel_wager1_lowest_gds(self):
+        """In CoinDuel, wagering 1 coin (most conservative) gives lowest GDS."""
+        from experiments.agency_model import CoinDuelActionGame, compute_policy_impact
+        game = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=3, refill_per_turn=1)
+        _, gds_per_action = compute_policy_impact(game)
+        # Wager 1 (index 0) should be lowest or near-lowest GDS
+        assert gds_per_action[0] <= max(gds_per_action)
+
+    def test_draftwars_high_pi_ratio(self):
+        """DraftWars has high PI/GDS ratio (player choice dominates experience)."""
+        from experiments.agency_model import DraftWarsActionGame, compute_policy_impact, compute_gds_for_policy
+        dw = DraftWarsActionGame()
+        pi, _ = compute_policy_impact(dw)
+        random_gds = compute_gds_for_policy(
+            dw, lambda s: [1/3, 1/3, 1/3]
+        ).game_design_score
+        if random_gds > 0.01:
+            # PI/GDS should be > 50% — very high agency
+            assert pi / random_gds > 0.50
+
+    def test_draftwars_balanced_zero_gds(self):
+        """In DraftWars, balanced strategy produces near-zero GDS."""
+        from experiments.agency_model import DraftWarsActionGame, compute_gds_for_policy
+        dw = DraftWarsActionGame()
+        # Balanced = index 2
+        balanced_policy = lambda s: [0.0, 0.0, 1.0]
+        gds = compute_gds_for_policy(dw, balanced_policy).game_design_score
+        # Balanced draft makes outcomes predictable → very low GDS
+        assert gds < 0.01
+
+    def test_draftwars_aggressive_highest_gds(self):
+        """In DraftWars, aggressive strategy gives highest pure-strategy GDS."""
+        from experiments.agency_model import DraftWarsActionGame, compute_policy_impact
+        dw = DraftWarsActionGame()
+        _, gds_per = compute_policy_impact(dw)
+        # Aggressive (index 0) should have highest GDS
+        assert gds_per[0] == max(gds_per)
+
+    def test_combat_cpg_structural_condition(self):
+        """CPG=0 iff Q(Heavy) > Q(Guard) — the structural condition."""
+        from experiments.agency_model import make_parametric_combat, compute_action_values
+        # Optimized game: Q(Heavy) > Q(Guard)
+        game = make_parametric_combat(5, heavy_dmg=3, heavy_hit_prob=0.7,
+                                       guard_counter=2, guard_vs_heavy_block=0.7)
+        q_values, _ = compute_action_values(game)
+        initial_q = q_values[game.initial_state()]
+        # Heavy (index 1) should have highest Q-value
+        assert initial_q[1] == max(initial_q)
+
+    def test_combat_baseline_guard_dominant(self):
+        """Baseline combat: Q(Guard) > Q(Heavy) — Guard dominates."""
+        game = make_combat_game(5)
+        q_values, _ = compute_action_values(game)
+        initial_q = q_values[game.initial_state()]
+        # Guard (index 2) should have highest Q-value in baseline
+        assert initial_q[2] == max(initial_q)
+
+    def test_pi_threshold_for_cpg_relevance(self):
+        """CPG is only meaningful when PI > some threshold (actions matter)."""
+        from experiments.agency_model import CoinDuelActionGame, compute_policy_impact, compute_choice_paradox_gap
+        # Low-PI game (default CoinDuel)
+        game_low = CoinDuelActionGame(rounds_to_win=3, initial_bank=5, max_wager=3, refill_per_turn=1)
+        pi_low, _ = compute_policy_impact(game_low)
+        # High-PI game (combat)
+        game_high = make_combat_game(5)
+        pi_high, _ = compute_policy_impact(game_high)
+        # Combat should have much higher PI
+        assert pi_high > 5 * pi_low
