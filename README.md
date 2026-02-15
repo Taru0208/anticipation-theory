@@ -17,6 +17,8 @@ This research uses [Anticipation Theory](https://github.com/akalouis/anticipatio
 
 **[▶ Play the Design Lab](https://taru0208.github.io/toa-research/design-lab/)** — same combat game, two sets of numbers. Feel the difference yourself.
 
+**[📐 Game Design Calculator](https://taru0208.github.io/toa-research/calculator/)** — analyze any game model's tension, agency, and fun alignment in real time.
+
 **[How It Works](https://taru0208.github.io/toa-research/about/)** — plain-language explanation of the theory.
 
 ---
