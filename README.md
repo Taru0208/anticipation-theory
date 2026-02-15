@@ -60,11 +60,8 @@ You will likely find the second game more engaging. This is a powerful and intui
 
 ### Extended Demos (this fork)
 
-  * **[Interactive Demo](https://taru0208.github.io/toa-research/demo/)** — canvas rendering, particles, sound, real-time A₁-A₅ display
-  * **[Rage Arena](https://taru0208.github.io/toa-research/game/)** — turn-based combat with Strike/Heavy/Rage/Guard
-  * **[Coin Duel](https://taru0208.github.io/toa-research/coin-duel/)** — wager coins, flip them, outsmart the opponent (GDS 0.404)
-  * **[Draft Wars](https://taru0208.github.io/toa-research/draft-wars/)** — sequential card draft + auto-battle (62% depth ratio)
-  * **[Paradox-Free Combat](https://taru0208.github.io/toa-research/paradox-free/)** — CPG = 0: the fun strategy IS the winning strategy
+  * **[Design Lab](https://taru0208.github.io/toa-research/design-lab/)** — the key demo. Same game, two parameter sets. In "Before," defense wins. In "After," offense wins. Feel how number changes eliminate the fun-vs-winning trade-off.
+  * **[Interactive Engine](https://taru0208.github.io/toa-research/demo/)** — real-time A₁-A₅ visualization with side-by-side game comparison
 
 -----
 
