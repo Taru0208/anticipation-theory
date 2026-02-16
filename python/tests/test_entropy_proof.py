@@ -21,6 +21,9 @@ from experiments.entropy_proof import (
     delta_exact,
     a1_exact,
     a1_stirling,
+    expected_total_a1,
+    a2_exact,
+    am_boundary,
     reach_probability,
     total_reach_weighted_a1,
     build_best_of_n,
@@ -185,6 +188,157 @@ class TestA1Formula:
                 approx = a1_stirling(a, b)
                 rel_error = abs(exact - approx) / exact
                 assert rel_error < 0.05, f"Stirling error {rel_error:.4f} at ({a},{b})"
+
+
+class TestExpectedTotalA1:
+    """Test the closed-form G(a,b) = (a+b-1) × A₁(a,b)."""
+
+    def test_matches_engine(self):
+        """Verify G formula against engine's propagated d_global for A₂ seed."""
+        for k in [3, 5, 7]:
+            init, term, trans, des = build_best_of_n(k)
+            result = analyze(
+                initial_state=init(), is_terminal=term, get_transitions=trans,
+                compute_intrinsic_desire=des, config=None, nest_level=5,
+            )
+            # Manually propagate A₁ as d_global
+            dg = {}
+            for s in result.states_r:
+                if term(s):
+                    dg[s] = 0.0
+                else:
+                    w, l = s
+                    a_rem, b_rem = k - w, k - l
+                    sp = (w + 1, l)
+                    sm = (w, l + 1)
+                    dg[s] = result.state_nodes[s].a[0] + 0.5 * dg[sp] + 0.5 * dg[sm]
+
+            for s in result.states:
+                if term(s):
+                    continue
+                w, l = s
+                a_rem, b_rem = k - w, k - l
+                formula = expected_total_a1(a_rem, b_rem)
+                assert abs(dg[s] - formula) < 1e-10, f"G mismatch at ({a_rem},{b_rem})"
+
+    def test_symmetry(self):
+        """G(a,b) = G(b,a)."""
+        for a in range(1, 10):
+            for b in range(1, 10):
+                assert abs(expected_total_a1(a, b) - expected_total_a1(b, a)) < 1e-15
+
+    def test_boundary(self):
+        """G(1,b) = b/2^b, G(a,1) = a/2^a."""
+        for b in range(1, 10):
+            assert abs(expected_total_a1(1, b) - b / 2 ** b) < 1e-15
+        for a in range(1, 10):
+            assert abs(expected_total_a1(a, 1) - a / 2 ** a) < 1e-15
+
+
+class TestA2Formula:
+    """Test the closed-form A₂(a,b) = |a-b| × A₁(a,b)."""
+
+    def test_matches_engine(self):
+        """Verify A₂ formula against engine output."""
+        for k in [3, 5, 7]:
+            init, term, trans, des = build_best_of_n(k)
+            result = analyze(
+                initial_state=init(), is_terminal=term, get_transitions=trans,
+                compute_intrinsic_desire=des, config=None, nest_level=5,
+            )
+            for s, node in result.state_nodes.items():
+                if term(s):
+                    continue
+                w, l = s
+                a_rem, b_rem = k - w, k - l
+                formula = a2_exact(a_rem, b_rem)
+                assert abs(node.a[1] - formula) < 1e-10, f"A₂ mismatch at ({a_rem},{b_rem})"
+
+    def test_zero_on_diagonal(self):
+        """A₂(a,a) = 0 for all a (symmetric states have no A₁ asymmetry)."""
+        for a in range(1, 15):
+            assert a2_exact(a, a) == 0.0
+
+    def test_symmetry(self):
+        """A₂(a,b) = A₂(b,a)."""
+        for a in range(1, 10):
+            for b in range(1, 10):
+                assert abs(a2_exact(a, b) - a2_exact(b, a)) < 1e-15
+
+    def test_positivity_off_diagonal(self):
+        """A₂(a,b) > 0 whenever a ≠ b."""
+        for a in range(1, 10):
+            for b in range(1, 10):
+                if a != b:
+                    assert a2_exact(a, b) > 0
+
+    def test_boundary(self):
+        """A₂(1,b) = (b-1)/2^b."""
+        for b in range(2, 10):
+            expected = (b - 1) / 2 ** b
+            assert abs(a2_exact(1, b) - expected) < 1e-15
+
+
+class TestBoundaryFormula:
+    """Test A_m at boundary states: A_m(1,b) = C(b-1, m-1) / 2^b."""
+
+    def test_matches_engine(self):
+        """Verify boundary formula against engine for m=1..5."""
+        k = 8
+        init, term, trans, des = build_best_of_n(k)
+        result = analyze(
+            initial_state=init(), is_terminal=term, get_transitions=trans,
+            compute_intrinsic_desire=des, config=None, nest_level=8,
+        )
+        for b in range(1, k + 1):
+            w = k - 1  # a_rem = 1
+            l = k - b
+            s = (w, l)
+            if s not in result.state_nodes or term(s):
+                continue
+            node = result.state_nodes[s]
+            for m in range(1, 6):
+                formula = am_boundary(m, b)
+                engine = node.a[m - 1]
+                assert abs(engine - formula) < 1e-10, f"A_{m}(1,{b}): engine={engine}, formula={formula}"
+
+    def test_a1_consistency(self):
+        """am_boundary(1, b) = a1_exact(1, b)."""
+        for b in range(1, 10):
+            assert abs(am_boundary(1, b) - a1_exact(1, b)) < 1e-15
+
+    def test_a2_consistency(self):
+        """am_boundary(2, b) = a2_exact(1, b)."""
+        for b in range(1, 10):
+            assert abs(am_boundary(2, b) - a2_exact(1, b)) < 1e-15
+
+    def test_pascal_triangle(self):
+        """The values am_boundary(m, b) × 2^b form Pascal's triangle rows."""
+        for b in range(1, 10):
+            row = [am_boundary(m, b) * 2 ** b for m in range(1, b + 1)]
+            expected_row = [binom(b - 1, m - 1) for m in range(1, b + 1)]
+            for m in range(len(row)):
+                assert abs(row[m] - expected_row[m]) < 1e-10
+
+    def test_symmetry_by_position(self):
+        """A_m(1,b) = A_m(b,1) by game symmetry."""
+        k = 8
+        init, term, trans, des = build_best_of_n(k)
+        result = analyze(
+            initial_state=init(), is_terminal=term, get_transitions=trans,
+            compute_intrinsic_desire=des, config=None, nest_level=8,
+        )
+        for b in range(2, k + 1):
+            s_1b = (k - 1, k - b)  # state with a_rem=1, b_rem=b
+            s_b1 = (k - b, k - 1)  # state with a_rem=b, b_rem=1
+            if s_1b not in result.state_nodes or s_b1 not in result.state_nodes:
+                continue
+            if term(s_1b) or term(s_b1):
+                continue
+            for m in range(1, 6):
+                a_1b = result.state_nodes[s_1b].a[m - 1]
+                a_b1 = result.state_nodes[s_b1].a[m - 1]
+                assert abs(a_1b - a_b1) < 1e-10, f"A_{m}(1,{b}) ≠ A_{m}({b},1)"
 
 
 class TestReachWeightedSum:

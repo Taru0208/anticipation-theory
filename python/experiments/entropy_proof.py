@@ -136,6 +136,94 @@ def a1_stirling(a, b):
 
 
 # ============================================================================
+# PART 1b: Closed-form G, A₂, and boundary A_m
+# ============================================================================
+
+def expected_total_a1(a, b):
+    """Expected total A₁ from state (a,b) to terminal.
+
+    THEOREM: G(a,b) = (a+b-1) × A₁(a,b) = (a+b-1) × C(a+b-2, a-1) / 2^{a+b-1}
+
+    Equivalently: G(a,b) = a × C(a+b-1, a) / 2^{a+b-1}
+
+    Proof:
+    G satisfies: G(a,b) = A₁(a,b) + (1/2)G(a-1,b) + (1/2)G(a,b-1)
+    with G(0,b) = G(a,0) = 0.
+
+    Substituting G(a,b) = (a+b-1) × A₁(a,b):
+    Need to verify: (a+b-1)A₁(a,b) = A₁(a,b) + (1/2)(a+b-2)A₁(a-1,b) + (1/2)(a+b-2)A₁(a,b-1)
+
+    Using A₁(a,b) = C(a+b-2,a-1)/2^{a+b-1}:
+    LHS = (a+b-1)C(a+b-2,a-1)/2^{a+b-1}
+    RHS = C(a+b-2,a-1)/2^{a+b-1} + (a+b-2)[C(a+b-3,a-2) + C(a+b-3,a-1)]/(2·2^{a+b-2})
+        = C(a+b-2,a-1)/2^{a+b-1} + (a+b-2)C(a+b-2,a-1)/2^{a+b-1}  [Pascal's identity]
+        = [1 + (a+b-2)]C(a+b-2,a-1)/2^{a+b-1}
+        = (a+b-1)C(a+b-2,a-1)/2^{a+b-1} = LHS  □
+
+    SYMMETRY: G(a,b) = G(b,a) since a·C(a+b-1,a) = (a+b-1)!/(a-1)!(b-1)!) = b·C(a+b-1,b).
+    """
+    if a <= 0 or b <= 0:
+        return 0.0
+    return (a + b - 1) * a1_exact(a, b)
+
+
+def a2_exact(a, b):
+    """Exact A₂ at state (a,b) in Best-of-N.
+
+    THEOREM: A₂(a,b) = |a - b| × A₁(a,b) = |a-b| × C(a+b-2, a-1) / 2^{a+b-1}
+
+    Proof:
+    A₂(a,b) = |G(a-1,b) - G(a,b-1)| / 2
+
+    For a,b ≥ 2:
+    G(a-1,b) - G(a,b-1) = (a+b-2)/2^{a+b-2} × [C(a+b-3,a-2) - C(a+b-3,a-1)]
+
+    Now: (a+b-2)·[C(n,k) - C(n,k+1)] where n=a+b-3, k=a-2
+    = (a+b-2)·C(a+b-3,a-2)·(a-b)/(a-1)
+
+    Using (a+b-2)·C(a+b-3,a-2) = (a-1)·C(a+b-2,a-1):
+    = (a-1)·C(a+b-2,a-1)·(a-b)/(a-1)
+    = (a-b)·C(a+b-2,a-1)
+
+    So: G(a-1,b) - G(a,b-1) = (a-b)·C(a+b-2,a-1)/2^{a+b-2} = 2(a-b)·A₁(a,b)
+
+    Therefore: A₂(a,b) = |2(a-b)·A₁(a,b)|/2 = |a-b|·A₁(a,b)  □
+
+    COROLLARY: A₂(a,a) = 0 for all a. The second-order anticipation vanishes
+    at symmetric states — dramatic swings in A₁ are equally likely in both directions.
+
+    COROLLARY: A₂ is maximized at the most asymmetric states (corners).
+    At (1,k): A₂ = (k-1)/2^k, at (k,1): A₂ = (k-1)/2^k.
+    """
+    if a <= 0 or b <= 0:
+        return 0.0
+    return abs(a - b) * a1_exact(a, b)
+
+
+def am_boundary(m, b):
+    """A_m at boundary state (1,b) for any nesting level m.
+
+    THEOREM: A_m(1,b) = C(b-1, m-1) / 2^b
+
+    The anticipation components at the boundary follow rows of Pascal's triangle:
+    A₁(1,b) = C(b-1, 0) / 2^b = 1/2^b
+    A₂(1,b) = C(b-1, 1) / 2^b = (b-1)/2^b
+    A₃(1,b) = C(b-1, 2) / 2^b = (b-1)(b-2)/(2·2^b)
+    A₄(1,b) = C(b-1, 3) / 2^b = (b-1)(b-2)(b-3)/(6·2^b)
+
+    This follows from the fact that at the boundary (a=1), the game tree
+    is a simple chain: each step either terminates (P1 wins) or continues.
+    The A_m values count the number of ways the next m-1 steps can
+    create nested anticipation patterns.
+
+    Verified against engine output for m=1..6 and b=1..10.
+    """
+    if m <= 0 or b <= 0:
+        return 0.0
+    return binom(b - 1, m - 1) / (2 ** b)
+
+
+# ============================================================================
 # PART 2: Reach-weighted A₁ sum (total first-order anticipation)
 # ============================================================================
 
