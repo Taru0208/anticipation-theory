@@ -34,7 +34,7 @@ The **Choice Paradox Gap (CPG)** measures how much "playing for fun" diverges fr
 | GDS (fun-optimal) | 0.534 | 0.591 | +10.7% |
 | Fun = Winning? | No | **Yes** | Paradox eliminated |
 
-**Design principle:** make risky actions have higher expected value than safe actions. Verified across combat, resource, and economic game structures (276 tests).
+**Design principle:** make risky actions have higher expected value than safe actions. Verified across combat, resource, and card draft game structures (306 tests).
 
 ---
 
@@ -42,7 +42,7 @@ The **Choice Paradox Gap (CPG)** measures how much "playing for fun" diverges fr
 
 ```bash
 cd python
-python3 -m pytest tests/ -v              # Run all 276 tests
+python3 -m pytest tests/ -v              # Run all 306 tests
 python3 experiments/agency_model.py --generalize  # CPG analysis
 ```
 
@@ -61,6 +61,7 @@ Complete rewrite of the C++ engine in Python, covering all 8 original game model
 | **1** | Agency integration | Policy Impact (PI) as correct agency metric; CPG elimination via parameter optimization |
 | **2** | Perceptual weighting | wGDS(α) — most games are DECAYING (A₁ dominant); ENL 3-5 sufficient |
 | **3** | Composite Fun Score | CFS = wGDS × (1 + PI/GDS) × (1 - CPG); CPG is dominant factor (r=0.921) |
+| **4** | Variance Injection | DraftWars CPG 0.249→0.017 (93%); inject intrinsic variance into extrinsic-variance games |
 
 ### All Game Models
 
@@ -106,6 +107,7 @@ Complete rewrite of the C++ engine in Python, covering all 8 original game model
 | Education Model | Goldilocks zone P≈50-80%; longer quizzes less engaging |
 | Gambling Mechanics | Gambling GDS 2-5× lower than games; payout asymmetry is the real killer |
 | Trading/Investment | Day trading GDS 0.877 (2× HpGame); stop options +132% |
+| Variance Injection | Extrinsic variance → CPG resistant; inject intrinsic variance to fix (DraftWars 93% reduction) |
 
 </details>
 
