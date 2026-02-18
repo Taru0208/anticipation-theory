@@ -23,9 +23,9 @@ class SparkDuelV4:
             self,
             max_hp=7,
             chip_damage=1,
-            blast_damage=3,
+            blast_damage=4,
             blast_hit_rate=0.60,
-            zap_damage=1,
+            zap_damage=2,
             brace_reduction=1,
             dodge_chance=0.40,
             dodge_counter=1,  # damage dealt to attacker on successful dodge
